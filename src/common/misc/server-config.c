@@ -1836,6 +1836,10 @@ DOTCONF_CB(enter_rootsrvs_context)
                     (struct server_configuration_s *)cmd->context;
     static int first_time = 1;
 
+    /* I traced back a problem I was having to here, so I agree...
+     * this is not right for V3. So I've if-zeroed it out for now.
+     */
+#if 0 /* hubcap */
     /* V3 this is NOT right */
     if (!first_time)
     {
@@ -1845,6 +1849,7 @@ DOTCONF_CB(enter_rootsrvs_context)
         return("Config file format error - only one RootServers context "
                "can be specified\n");
     }
+#endif /* hubcap */
 
     first_time = 0;
     config_s->configuration_context = CTX_ROOTSERVERS;
