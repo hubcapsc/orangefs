@@ -363,6 +363,7 @@ do {                                                \
 #include <linux/fs.h>
 #endif
 
+#define ORANGEFS_OPEN_FL 0x00000004
 
 /*The value for PVFS_MIRROR_FL will not conflict with the FS values.*/
 #if defined(FS_IMMUTABLE_FL)
@@ -385,6 +386,7 @@ do {                                                \
 #define ALL_FS_META_HINT_FLAGS \
    (PVFS_IMMUTABLE_FL |        \
     PVFS_APPEND_FL    |        \
+    ORANGEFS_OPEN_FL    |        \
     PVFS_NOATIME_FL )
 
 /* Key/Value Pairs */

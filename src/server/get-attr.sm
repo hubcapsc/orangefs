@@ -1578,6 +1578,16 @@ static PINT_sm_action getattr_create_capability(
                                 num_groups,
                                 resp_attr,
                                 &resp_attr->capability.op_mask);
+
+    /*
+     * check to see if this file is in an "open" state. If so, bypass
+     * permission checking...
+     */
+    if (s_op->resp.u.getattr.attr.u.meta.hint.flags & ORANGEFS_OPEN_FL) {
+        resp_attr->capability.op_mask |= PINT_CAP_WRITE;
+        resp_attr->capability.op_mask |= PINT_CAP_READ;
+    }
+
     if (ret < 0)
     {
         PINT_cleanup_capability(&resp_attr->capability);
