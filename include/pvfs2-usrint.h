@@ -181,6 +181,9 @@ extern int pvfs_close( int fd );
 
 extern int pvfs_flush(int fd);
 
+struct stat64;
+struct dirent64;
+struct statfs64;
 /* various flavors of stat */
 extern int pvfs_stat(const char *path, struct stat *buf);
 
