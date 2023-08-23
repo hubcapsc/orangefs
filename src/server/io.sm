@@ -273,6 +273,10 @@ static PINT_sm_action io_release(
     int ret = 0;
     job_id_t i;
 
+syslog(LOG_ERR, "+%s io: Handle:%lu: fs_id:%d\n",
+__func__, s_op->req->u.io.handle, s_op->target_fs_id);
+
+
     /*
       tell the scheduler that we are done with this operation (if it
       was scheduled in the first place)

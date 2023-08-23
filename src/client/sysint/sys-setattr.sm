@@ -109,12 +109,14 @@ PVFS_error PVFS_isys_setattr(
      * make sure the caller didn't set invalid mask bits.
      * only common attributes can be set.
      */
+/*
     if ((attr.mask & ~PVFS_ATTR_SYS_ALL_TIMES) != 0)
     {
         gossip_lerr("PVFS_isys_setattr() failure: invalid attributes "
                     "specified\n");
         return ret;
     }
+*/
 
     /* make sure that the permission bits are acceptable */
     if ((attr.mask & PVFS_ATTR_SYS_PERM) && (attr.perms & ~PVFS_PERM_VALID) != 0)

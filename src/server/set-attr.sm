@@ -933,6 +933,9 @@ static PINT_sm_action setattr_write_symlink_target_if_required(
 
     s_op->val.buffer = s_op->req->u.setattr.attr.u.sym.target_path;
     s_op->val.buffer_sz = s_op->req->u.setattr.attr.u.sym.target_path_len;
+syslog(LOG_ERR, "+%s symlink: handle:%lu: fsid:%d: target:%s:\n",
+__func__, s_op->req->u.setattr.handle, s_op->req->u.setattr.fs_id, 
+(char *) s_op->val.buffer);
 
     gossip_debug(GOSSIP_SETATTR_DEBUG, "  writing %s [%llu,%d,"
                  "len %d]\n", (char *)s_op->key.buffer,

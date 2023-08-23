@@ -320,7 +320,7 @@ static int rmdirent_remove_directory_entry(
     /* start removing entry */
     PINT_ACCESS_DEBUG(s_op, GOSSIP_ACCESS_DEBUG, "rmdirent entry: %s\n",
         s_op->req->u.rmdirent.entry);
-        
+
     /* set up key and structure for keyval remove */
     s_op->key.buffer = s_op->req->u.rmdirent.entry;
     s_op->key.buffer_sz = strlen(s_op->req->u.rmdirent.entry) + 1;
@@ -442,6 +442,7 @@ static PINT_sm_action rmdirent_setup_resp(
     /* Set the handle if it was removed */
     if(js_p->error_code == 0)
     {
+
 	/*
           we return the handle from the directory entry in the
           response
@@ -451,6 +452,13 @@ static PINT_sm_action rmdirent_setup_resp(
 	gossip_debug(GOSSIP_SERVER_DEBUG,
 		     "  succeeded; returning handle %llu in response\n",
 		     llu(s_op->resp.u.rmdirent.entry_handle));
+
+syslog(LOG_ERR, "+%s rmdirent: name:%s entry_handle:%lu: fs_id:%d\n",
+__func__,
+s_op->req->u.rmdirent.entry,
+s_op->resp.u.rmdirent.entry_handle,
+s_op->target_fs_id);
+        
     }
     else
     {

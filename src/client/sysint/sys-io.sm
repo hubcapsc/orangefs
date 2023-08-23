@@ -2537,6 +2537,12 @@ static inline int io_post_write_ack_recv(PINT_smcb *smcb,
     int ret;
     unsigned long status_user_tag;
 
+syslog(LOG_ERR, "+%s io: Handle:%lu: parent_handle:%lu: fs_id:%d\n",
+__func__,
+sm_p->object_ref.handle,
+sm_p->parent_ref.handle,
+sm_p->object_ref.fs_id);
+
     gossip_debug(GOSSIP_IO_DEBUG, "  preposting write "
                  "ack for context %p.\n", cur_ctx);
 
