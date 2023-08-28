@@ -76,31 +76,47 @@ s_op->u.crdirent.parent_handle,
 s_op->u.crdirent.new_handle,
 s_op->u.crdirent.name,
 s_op->target_fs_id);
+syslog(LOG_ERR, "+%s crdirent: %d 0 %lu %lu %s %d 0\n",
+__func__, s_op->op, s_op->u.crdirent.new_handle, s_op->u.crdirent.parent_handle,
+s_op->u.crdirent.name, s_op->target_fs_id);
 }
-else if (s_op->op == PVFS_SERV_RMDIRENT)
+else if (s_op->op == PVFS_SERV_RMDIRENT) {
 syslog(LOG_ERR, "+%s rmdirent: handle:%lu: fs_id:%d\n",
 __func__,
 s_op->resp.u.rmdirent.entry_handle,
 s_op->target_fs_id);
-else if (s_op->op == PVFS_SERV_MKDIR)
+syslog(LOG_ERR, "+%s rmdirent: %d 0 %lu 0 0 %d 0\n",
+__func__, s_op->op, s_op->resp.u.rmdirent.entry_handle,
+s_op->target_fs_id);
+} else if (s_op->op == PVFS_SERV_MKDIR) {
 syslog(LOG_ERR, "+%s mkdir: object-type:%d: handle:%lu: fs_id:%d\n",
 __func__,
 s_op->target_object_attr->objtype,
 s_op->resp.u.mkdir.handle,
 s_op->target_fs_id);
-else if (s_op->op == PVFS_SERV_SETEATTR)
+syslog(LOG_ERR, "+%s mkdir: %d 0 %lu 0 0 %d 0\n",
+__func__, s_op->op, s_op->resp.u.mkdir.handle, s_op->target_fs_id);
+} else if (s_op->op == PVFS_SERV_SETEATTR) {
 syslog(LOG_ERR, "+%s seteattr: object-type:%d: handle:%lu: fs_id:%d\n",
 __func__,
 s_op->target_object_attr->objtype,
 s_op->target_handle,
 s_op->target_fs_id);
-else if (s_op->op == PVFS_SERV_SETATTR)
+syslog(LOG_ERR, "+%s seteattr: %d 0 %lu 0 0 %d 0\n",
+__func__, s_op->op, s_op->target_handle, s_op->target_fs_id);
+} else if (s_op->op == PVFS_SERV_SETATTR) {
+/* else if setattr and link_target == null */
 syslog(LOG_ERR, "+%s setattr: object-type:%d: handle:%lu: fs_id:%d\n",
 __func__,
 s_op->target_object_attr->objtype,
 s_op->target_handle,
 s_op->target_fs_id);
-else if (s_op->op == PVFS_SERV_REMOVE)
+syslog(LOG_ERR, "+%s setattr: %d %d %lu 0 0 %d 0\n",
+__func__, s_op->op,
+s_op->target_object_attr->objtype,
+s_op->target_handle,
+s_op->target_fs_id);
+} else if (s_op->op == PVFS_SERV_REMOVE)
 syslog(LOG_ERR, "+%s remove: object-type:%d: handle:%lu: fs_id:%d\n",
 __func__,
 s_op->target_object_attr->objtype,
