@@ -453,12 +453,19 @@ static PINT_sm_action rmdirent_setup_resp(
 		     "  succeeded; returning handle %llu in response\n",
 		     llu(s_op->resp.u.rmdirent.entry_handle));
 
-syslog(LOG_ERR, "+%s rmdirent: name:%s entry_handle:%lu: fs_id:%d\n",
-__func__,
+syslog(LOG_ERR, "+%s rmdirent:%d 0 %lu 0 %s %d 0\n",
+__func__, s_op->op,
+s_op->resp.u.rmdirent.entry_handle,
+s_op->req->u.rmdirent.entry,
+s_op->target_fs_id);
+/*
+syslog(LOG_ERR, "+%s rmdirent: op:%d name:%s entry_handle:%lu: fs_id:%d\n",
+__func__, s_op->op,
 s_op->req->u.rmdirent.entry,
 s_op->resp.u.rmdirent.entry_handle,
 s_op->target_fs_id);
-        
+*/
+
     }
     else
     {

@@ -910,11 +910,6 @@ static int setup_resp(
                           llu(s_op->resp.u.create.metafile_handle));
     }
 
-syslog(LOG_ERR, "+%s create: object-type:%d: handle:%lu: fs_id:%d\n",
-__func__,
-s_op->target_object_attr->objtype,
-s_op->resp.u.create.metafile_handle,
-s_op->target_fs_id);
 syslog(LOG_ERR, "+%s create: %d 0 %lu 0 0 %d 0\n",
 __func__, s_op->op, s_op->resp.u.create.metafile_handle, s_op->target_fs_id);
  
