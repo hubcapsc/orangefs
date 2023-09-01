@@ -18,6 +18,8 @@
 #include <getopt.h>
 #include <syslog.h>
 
+#include <poll.h>
+
 #ifdef __PVFS2_SEGV_BACKTRACE__
 #include <execinfo.h>
 #include <ucontext.h>
@@ -705,6 +707,8 @@ static int server_setup_process_environment(int background)
 {
     pid_t new_pid = 0;
     int pid_fd = -1;
+    int pipefd[2]; /* hubcap */
+    int rc;
 
     /*
      * Manage a pid file if requested (for init scripts).  Create
@@ -731,6 +735,12 @@ static int server_setup_process_environment(int background)
 
     umask(0077);
 
+    /* hubcap */
+    if (pipe(pipefd) == -1) {
+        gossip_err("cannot open pipe, errno:%d:.\n", errno)
+        return(-PVFS_EINVAL);
+    }
+
     if (background)
     {
         new_pid = fork();
@@ -741,9 +751,42 @@ static int server_setup_process_environment(int background)
             return(-PVFS_EINVAL);
         }
         else if (new_pid > 0)
-        {
-            /* exit parent */
-            exit(0);
+        { /* hubcap */
+            /*
+             * fork off another process. The first process will become
+             * the server and this second one will exist to receive
+             * fs change notifications from the server using the
+             * pipe set up above.
+             */
+            new_pid = fork();
+            if (new_pid < 0) {
+                gossip_err("fork failed, errno:%d:\n", errno);
+                return(-PVFS_EINVAL);
+            } else if (new_pid > 0) {
+                /* still in the parent... */
+                exit(0);
+            }
+             
+            /*
+             * Calling setsid will make sure we shed the
+             * controlling terminal if any. Calling setsid from 
+             * a child instead of just using the parent process 
+             * we already had going insures that setsid won't be
+             * called from a process group leader.
+             */
+             if (setsid() < 0)
+             {
+                 gossip_err("setsid failed, errno:%d:\n", errno);
+                 return(-PVFS_EINVAL);
+             }
+
+             /* Child number two will read from the pipe... */
+             close(pipefd[1]);
+
+             /* go off and listen for change notifications forever... */
+             rc = server_change(pipefd[0]);
+             gossip_err("should we ever have come back here?");
+             exit(0);
         }
 
         new_pid = setsid();
@@ -752,6 +795,9 @@ static int server_setup_process_environment(int background)
             gossip_err("error in setsid() system call.  aborting.\n");
             return(-PVFS_EINVAL);
         }
+
+        /* Child number one will write to the pipe... */
+        close(pipefd[0]);
     }
     if (pid_fd >= 0)
     {
