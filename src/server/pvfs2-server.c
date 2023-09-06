@@ -168,6 +168,8 @@ static void **server_completed_job_p_array = NULL;
 static job_status_s *server_job_status_array = NULL;
 
 /* Prototypes for internal functions */
+static int server_change(int fd);
+static void the_rest(char *notification);
 static int server_initialize(
     PINT_server_status_flag *server_status_flag,
     job_status_s *job_status_structs);
@@ -736,8 +738,9 @@ static int server_setup_process_environment(int background)
     umask(0077);
 
     /* hubcap */
-    if (pipe(pipefd) == -1) {
-        gossip_err("cannot open pipe, errno:%d:.\n", errno)
+    if (pipe(pipefd) == -1)
+    {
+        gossip_err("cannot open pipe, errno:%d:.\n", errno);
         return(-PVFS_EINVAL);
     }
 
@@ -759,10 +762,13 @@ static int server_setup_process_environment(int background)
              * pipe set up above.
              */
             new_pid = fork();
-            if (new_pid < 0) {
+            if (new_pid < 0)
+            {
                 gossip_err("fork failed, errno:%d:\n", errno);
                 return(-PVFS_EINVAL);
-            } else if (new_pid > 0) {
+            }
+            else if (new_pid > 0)
+            {
                 /* still in the parent... */
                 exit(0);
             }
@@ -808,6 +814,241 @@ static int server_setup_process_environment(int background)
     server_controlling_pid = getpid();
     return 0;
 }
+
+/********** asdf *************/
+
+/*
+ * When a CREATE(1) goes by, remember the handle on a list.
+ * 
+ * When a MKDIR(11) goes by, remember the handle on a list.
+ * 
+ * When a SETATTR(5) with a symlink target goes by remember the handle on
+ * a list, plus the target.
+ * 
+ * When a CRDIRENT(7) goes by,
+ *   if there's a matching handle on the create-list,
+ *     tell IRODS a file was created.
+ *   if there's a matching handle on the mkdir-list,
+ *     tell IRODS a directory was created.
+ *   if there's a matching handle on the setattr-list,
+ *     tell IRODS a symlink was created.
+ *   if the handle has no association, remember it on a list along
+ *     with the name and phandle.
+ * 
+ * When an RMDIRENT(8) goes by,
+ *   if there's a matching handle on the crdirent-list,
+ *     tell IRODS a rename happened.
+ *   if the handle has no association,
+ *     remember it on a list along with the
+ *       name of the deleted object.
+ * 
+ * When a REMOVE(2) goes by,
+ *   if there's a matching handle on the rmdirent-list,
+ *     tell IRODS that name/handle/type has been deleted.
+ * 
+ *             op type  handle   phandle  name  fs-id        link-target
+ * create:      1    1  1048581     0       0   2143989784     0
+ *
+ * mkdir:      11    4  1048571     0       0   2143989784     0
+ *
+ * crdirent:    7    0  1048581  1048576  foo   2143989784     0
+ *
+ * rmdirent:    8    0  1048581     0       0   2143989784     0
+ *
+ * setattr:     5    8  1048573     0       0   2143989784     0
+ *
+ * remove:      2    1  1048573     0       0   2143989784     0
+ *
+ */
+
+#define LIST_DIR "/opt/orangefs/storage/change"
+
+int server_change(int fd) {
+	struct pollfd pfds;
+	char buffer[4096];  /* needs to be dynamically sized? */
+	int i = 0;
+        int rc;
+        char c[1];
+
+	if (chdir(LIST_DIR)) {
+		printf("%s: chdir to :%s: failed, errno:%d:\n",
+			__func__, LIST_DIR, errno);
+		_exit(0);
+	}
+	mkdir("d.create", 0700);
+	mkdir("d.mkdir", 0700);
+	mkdir("d.crdirent", 0700);
+	mkdir("d.rmdirent", 0700);
+	mkdir("d.setattr", 0700);
+
+	pfds.fd = fd;
+	pfds.events = POLLIN;
+
+	while (1) {
+
+poll:		if (poll(&pfds, 1, -1) == -1) {
+			gossip_err("poll failed, errno:%d:\n", errno);
+			exit(0);			
+		}
+
+		if (pfds.revents != 0) {
+			if (pfds.revents & POLLIN) {
+read:				rc = read(pfds.fd, c, 1);
+				if (rc == 1) {
+					buffer[i++] = c[0];
+					if ( c[0] == '\0') {
+						the_rest(buffer);
+						i = 0;
+					}
+					goto read;
+				} 
+				if (rc == EWOULDBLOCK )
+					goto poll;
+			} else {
+				gossip_err("unexpected poll return code.\n");
+				exit(0);
+			}
+		}
+	}
+}
+
+void the_rest(char *notification) {
+	struct stat statbuf;
+	int fd;
+	int op;
+	char handle[32];
+	char phandle[32];
+	char name[256];
+        char buffer[512];
+	char fsid[256];
+	char target[PATH_MAX];
+	int type;
+/*
+ * op, type, handle, phandle, name, fs-id, link-target
+ */
+	sscanf(notification,
+		"%d %d %s %s %s %s %s",
+		 &op, &type, handle, phandle, name, fsid, target);
+/*
+printf(":%d: :%d: :%s: :%s: :%s: :%s: :%s:\n",
+op, type, handle, phandle, name, fsid, target);
+*/
+	switch(op)
+	{
+
+	  case PVFS_SERV_CREATE:
+	    chdir("d.create");
+	    fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	    close(fd);
+	    chdir("..");
+	    break;
+
+	  case PVFS_SERV_MKDIR:
+	    chdir("d.mkdir");
+	    fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	    close(fd);
+	    chdir("..");
+	    break;
+
+	  case PVFS_SERV_SETATTR:
+	    if (strcmp(target,"0")) {
+	      chdir("d.setattr");
+	      fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	      write(fd, target, strlen(target));
+	      write(fd, " \n", 1);
+	      close(fd);
+	      chdir("..");
+	    } else {
+	      printf("%s: unhandled setattr\n", __func__);
+	    }
+	    break;
+
+	  case PVFS_SERV_CRDIRENT:
+	    chdir("d.create");
+	    if (!stat(handle, &statbuf)) {
+		unlink(handle);
+		printf("create file %s with handle %s in parent %s\n",
+			name, handle, phandle);
+	        chdir("..");
+		break;
+	    }
+	    chdir("../d.mkdir");
+	    if (!stat(handle, &statbuf)) {
+		unlink(handle);
+		printf("create dir %s with handle %s in parent %s\n",
+			name, handle, phandle);
+	        chdir("..");
+		break;
+	    }
+	    chdir("../d.setattr");
+	    if (!stat(handle, &statbuf)) {
+	    	fd = open(handle, O_RDONLY, S_IRWXU);
+		read(fd, buffer, 511);
+		sscanf(buffer, "%s \n", target);
+		close(fd);
+		unlink(handle);
+		printf("create symlink %s, handle %s, parent %s, ",
+			name, handle, phandle);
+                        printf("target %s\n", target);
+	        chdir("..");
+		break;
+	    }
+	    chdir("../d.crdirent");
+	    fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	    write(fd, name, strlen(name));
+	    write(fd, " ", 1);
+	    write(fd, phandle, strlen(phandle));
+	    write(fd, " \n", 1);
+	    close(fd);
+	    chdir("..");
+	    break;
+
+	  case PVFS_SERV_RMDIRENT:
+	    chdir("d.crdirent");
+	    if (!stat(handle, &statbuf)) {
+	    	fd = open(handle, O_RDONLY, S_IRWXU);
+		read(fd, buffer, 511);
+		sscanf(buffer, "%s %s", name, phandle);
+		/*sscanf(buffer, "%s%s\n", name, phandle);*/
+		close(fd);
+		printf("rename handle %s in parent %s to %s\n",
+			handle, phandle, name);
+		unlink(handle);
+		chdir("..");
+		break;
+	    }
+	    chdir("../d.rmdirent");
+	    fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	    write(fd, name, strlen(name));
+	    write(fd, " \n", 1);
+	    close(fd);
+	    chdir("..");
+	    break;
+
+	  case PVFS_SERV_REMOVE:
+	    chdir("d.rmdirent");
+	    if (!stat(handle, &statbuf)) {
+	    	fd = open(handle, O_RDONLY, S_IRWXU);
+		read(fd, buffer, 511);
+		sscanf(buffer, "%s", name);
+		close(fd);
+		printf("delete object: type:%d: name:%s: handle:%s:\n",
+			type, name, handle);
+		unlink(handle);
+		chdir("..");
+	    } else {
+	      printf("%s: unhandled remove\n", __func__);
+	    }
+	    break;
+
+	  default:
+	    printf("%s: op switch, hit default, exiting.\n", __func__);
+	    _exit(0);
+	}
+}
+
+/********** asdf *************/
+
 
 /* server_initialize_subsystems()
  *
