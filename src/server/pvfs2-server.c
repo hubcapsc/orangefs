@@ -709,7 +709,7 @@ static int server_setup_process_environment(int background)
 {
     pid_t new_pid = 0;
     int pid_fd = -1;
-    int pipefd[2]; /* hubcap */
+    int pipefd[2];
     int rc;
 
     /*
@@ -791,7 +791,7 @@ static int server_setup_process_environment(int background)
 
              /* go off and listen for change notifications forever... */
              rc = server_change(pipefd[0]);
-             gossip_err("should we ever have come back here?");
+             gossip_err("should we ever have come back here? rc:%d:", rc);
              exit(0);
         }
 
