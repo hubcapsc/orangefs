@@ -113,6 +113,12 @@ static QLIST_HEAD(noreq_sop_list);
 /* this is used externally by some server state machines */
 job_context_id server_job_context = -1;
 
+/*
+ * A set of file descriptors to communicate between the server
+ * and the change monitor.
+ */
+int pipefd[2];
+
 typedef struct
 {
     int server_remove_storage_space;
@@ -709,7 +715,6 @@ static int server_setup_process_environment(int background)
 {
     pid_t new_pid = 0;
     int pid_fd = -1;
-    int pipefd[2];
     int rc;
 
     /*
@@ -740,7 +745,7 @@ static int server_setup_process_environment(int background)
     /* hubcap */
     if (pipe(pipefd) == -1)
     {
-        gossip_err("cannot open pipe, errno:%d:.\n", errno);
+        gossip_err("+%s cannot open pipe, errno:%d:.\n", __func__, errno);
         return(-PVFS_EINVAL);
     }
 
@@ -764,7 +769,7 @@ static int server_setup_process_environment(int background)
             new_pid = fork();
             if (new_pid < 0)
             {
-                gossip_err("fork failed, errno:%d:\n", errno);
+                gossip_err("+%s fork failed, errno:%d:\n", __func__, errno);
                 return(-PVFS_EINVAL);
             }
             else if (new_pid > 0)
@@ -782,7 +787,7 @@ static int server_setup_process_environment(int background)
              */
              if (setsid() < 0)
              {
-                 gossip_err("setsid failed, errno:%d:\n", errno);
+                 gossip_err("+%s setsid failed, errno:%d:\n", __func__, errno);
                  return(-PVFS_EINVAL);
              }
 
@@ -791,7 +796,8 @@ static int server_setup_process_environment(int background)
 
              /* go off and listen for change notifications forever... */
              rc = server_change(pipefd[0]);
-             gossip_err("should we ever have come back here? rc:%d:", rc);
+             gossip_err("+%s should we ever have come back here? rc:%d:",
+               __func__, rc);
              exit(0);
         }
 
@@ -804,6 +810,7 @@ static int server_setup_process_environment(int background)
 
         /* Child number one will write to the pipe... */
         close(pipefd[0]);
+gossip_err("+%s fd:%d:\n", __func__, pipefd[1]);
     }
     if (pid_fd >= 0)
     {
@@ -814,8 +821,6 @@ static int server_setup_process_environment(int background)
     server_controlling_pid = getpid();
     return 0;
 }
-
-/********** asdf *************/
 
 /*
  * When a CREATE(1) goes by, remember the handle on a list.
@@ -861,7 +866,8 @@ static int server_setup_process_environment(int background)
  *
  */
 
-#define LIST_DIR "/opt/orangefs/storage/change"
+/* #define LIST_DIR "/opt/orangefs/storage/change" */
+#define LIST_DIR "/tmp/d.foo"
 
 int server_change(int fd) {
 	struct pollfd pfds;
@@ -871,7 +877,7 @@ int server_change(int fd) {
         char c[1];
 
 	if (chdir(LIST_DIR)) {
-		printf("%s: chdir to :%s: failed, errno:%d:\n",
+		gossip_err("%s: chdir to :%s: failed, errno:%d:\n",
 			__func__, LIST_DIR, errno);
 		_exit(0);
 	}
@@ -886,17 +892,21 @@ int server_change(int fd) {
 
 	while (1) {
 
-poll:		if (poll(&pfds, 1, -1) == -1) {
-			gossip_err("poll failed, errno:%d:\n", errno);
+poll:  gossip_err("+poll \n");
+
+		if (poll(&pfds, 1, -1) == -1) {
+			gossip_err("+poll failed, errno:%d:\n", errno);
 			exit(0);			
 		}
 
 		if (pfds.revents != 0) {
 			if (pfds.revents & POLLIN) {
-read:				rc = read(pfds.fd, c, 1);
+read:		gossip_err("+read\n");	
+	rc = read(pfds.fd, c, 1);
 				if (rc == 1) {
 					buffer[i++] = c[0];
 					if ( c[0] == '\0') {
+gossip_err("+buffer:%s:\n", buffer);	
 						the_rest(buffer);
 						i = 0;
 					}
@@ -905,7 +915,7 @@ read:				rc = read(pfds.fd, c, 1);
 				if (rc == EWOULDBLOCK )
 					goto poll;
 			} else {
-				gossip_err("unexpected poll return code.\n");
+				gossip_err("+unexpected poll return code.\n");
 				exit(0);
 			}
 		}
@@ -929,10 +939,8 @@ void the_rest(char *notification) {
 	sscanf(notification,
 		"%d %d %s %s %s %s %s",
 		 &op, &type, handle, phandle, name, fsid, target);
-/*
-printf(":%d: :%d: :%s: :%s: :%s: :%s: :%s:\n",
-op, type, handle, phandle, name, fsid, target);
-*/
+gossip_err("+%s :%d: :%d: :%s: :%s: :%s: :%s: :%s:\n",
+__func__, op, type, handle, phandle, name, fsid, target);
 	switch(op)
 	{
 
@@ -1046,9 +1054,6 @@ op, type, handle, phandle, name, fsid, target);
 	    _exit(0);
 	}
 }
-
-/********** asdf *************/
-
 
 /* server_initialize_subsystems()
  *

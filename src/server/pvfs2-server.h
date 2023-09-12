@@ -40,6 +40,9 @@
 
 extern job_context_id server_job_context;
 
+/* change ipc */
+extern int pipefd[2];
+
 #define PVFS2_SERVER_DEFAULT_TIMEOUT_MS      1000
 #define BMI_UNEXPECTED_OP                    999
 
