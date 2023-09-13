@@ -18,6 +18,7 @@
 #include <getopt.h>
 #include <syslog.h>
 
+#include <sys/prctl.h>
 #include <poll.h>
 
 #ifdef __PVFS2_SEGV_BACKTRACE__
@@ -26,6 +27,8 @@
 #endif
 
 #define __PINT_REQPROTO_ENCODE_FUNCS_C
+
+#define CHILE2 "pvfs2-change"
 
 #include "pvfs2-internal.h"
 #include "bmi.h"
@@ -178,13 +181,14 @@ static int server_change(int fd);
 static void the_rest(char *notification);
 static int server_initialize(
     PINT_server_status_flag *server_status_flag,
-    job_status_s *job_status_structs);
+    job_status_s *job_status_structs,
+    char **argv);
 static int server_initialize_subsystems(
     PINT_server_status_flag *server_status_flag);
 static int server_setup_signal_handlers(void);
 static int server_check_if_root_directory_created(void);
 static int server_purge_unexpected_recv_machines(void);
-static int server_setup_process_environment(int background);
+static int server_setup_process_environment(int background, char **argv);
 static int server_shutdown(
     PINT_server_status_flag status,
     int ret, int sig);
@@ -361,7 +365,7 @@ int main(int argc, char **argv)
     server_status_flag |= SERVER_JOB_OBJS_ALLOCATED;
 
     /* Initialize the server (many many steps) */
-    ret = server_initialize(&server_status_flag, server_job_status_array);
+    ret = server_initialize(&server_status_flag, server_job_status_array, argv);
     if (ret < 0)
     {
         gossip_err("Error: Could not initialize server; aborting.\n");
@@ -545,7 +549,8 @@ static void remove_pidfile(void)
  */
 static int server_initialize(
     PINT_server_status_flag *server_status_flag,
-    job_status_s *job_status_structs)
+    job_status_s *job_status_structs,
+    char **argv)
 {
     int ret = 0, i = 0; 
     FILE *dummy;
@@ -607,7 +612,7 @@ static int server_initialize(
 
     /* handle backgrounding, setting up working directory, and so on. */
     ret = server_setup_process_environment(
-        s_server_options.server_background);
+        s_server_options.server_background, argv);
     if (ret < 0)
     {
         gossip_err("Error: Could not start server; aborting.\n");
@@ -711,11 +716,12 @@ static int server_initialize(
  * returns 0 on success, -PVFS_EINVAL on failure (details will be logged to
  * gossip)
  */
-static int server_setup_process_environment(int background)
+static int server_setup_process_environment(int background, char **argv)
 {
     pid_t new_pid = 0;
     int pid_fd = -1;
     int rc;
+    int size;
 
     /*
      * Manage a pid file if requested (for init scripts).  Create
@@ -794,6 +800,16 @@ static int server_setup_process_environment(int background)
              /* Child number two will read from the pipe... */
              close(pipefd[1]);
 
+             /*
+              * give child number two its own name in ps and proc
+              * and all that...
+              */
+             if (prctl(PR_SET_NAME, CHILE2))
+		gossip_err("prctl failed for child 2, errno:%d:\n", errno);
+
+             size = strlen(argv[0]);
+             strncpy(argv[0], CHILE2, size);
+
              /* go off and listen for change notifications forever... */
              rc = server_change(pipefd[0]);
              gossip_err("+%s should we ever have come back here? rc:%d:",
@@ -810,7 +826,6 @@ static int server_setup_process_environment(int background)
 
         /* Child number one will write to the pipe... */
         close(pipefd[0]);
-gossip_err("+%s fd:%d:\n", __func__, pipefd[1]);
     }
     if (pid_fd >= 0)
     {
@@ -892,21 +907,17 @@ int server_change(int fd) {
 
 	while (1) {
 
-poll:  gossip_err("+poll \n");
-
-		if (poll(&pfds, 1, -1) == -1) {
+poll:          if (poll(&pfds, 1, -1) == -1) {
 			gossip_err("+poll failed, errno:%d:\n", errno);
 			exit(0);			
 		}
 
 		if (pfds.revents != 0) {
 			if (pfds.revents & POLLIN) {
-read:		gossip_err("+read\n");	
-	rc = read(pfds.fd, c, 1);
+read:			rc = read(pfds.fd, c, 1);
 				if (rc == 1) {
 					buffer[i++] = c[0];
 					if ( c[0] == '\0') {
-gossip_err("+buffer:%s:\n", buffer);	
 						the_rest(buffer);
 						i = 0;
 					}
@@ -939,8 +950,6 @@ void the_rest(char *notification) {
 	sscanf(notification,
 		"%d %d %s %s %s %s %s",
 		 &op, &type, handle, phandle, name, fsid, target);
-gossip_err("+%s :%d: :%d: :%s: :%s: :%s: :%s: :%s:\n",
-__func__, op, type, handle, phandle, name, fsid, target);
 	switch(op)
 	{
 
@@ -975,7 +984,7 @@ __func__, op, type, handle, phandle, name, fsid, target);
 	    chdir("d.create");
 	    if (!stat(handle, &statbuf)) {
 		unlink(handle);
-		printf("create file %s with handle %s in parent %s\n",
+		gossip_err("create file %s with handle %s in parent %s\n",
 			name, handle, phandle);
 	        chdir("..");
 		break;
@@ -983,7 +992,7 @@ __func__, op, type, handle, phandle, name, fsid, target);
 	    chdir("../d.mkdir");
 	    if (!stat(handle, &statbuf)) {
 		unlink(handle);
-		printf("create dir %s with handle %s in parent %s\n",
+		gossip_err("create dir %s with handle %s in parent %s\n",
 			name, handle, phandle);
 	        chdir("..");
 		break;
@@ -995,7 +1004,7 @@ __func__, op, type, handle, phandle, name, fsid, target);
 		sscanf(buffer, "%s \n", target);
 		close(fd);
 		unlink(handle);
-		printf("create symlink %s, handle %s, parent %s, ",
+		gossip_err("create symlink %s, handle %s, parent %s, ",
 			name, handle, phandle);
                         printf("target %s\n", target);
 	        chdir("..");
@@ -1017,9 +1026,8 @@ __func__, op, type, handle, phandle, name, fsid, target);
 	    	fd = open(handle, O_RDONLY, S_IRWXU);
 		read(fd, buffer, 511);
 		sscanf(buffer, "%s %s", name, phandle);
-		/*sscanf(buffer, "%s%s\n", name, phandle);*/
 		close(fd);
-		printf("rename handle %s in parent %s to %s\n",
+		gossip_err("rename handle %s in parent %s to %s\n",
 			handle, phandle, name);
 		unlink(handle);
 		chdir("..");
@@ -1040,7 +1048,7 @@ __func__, op, type, handle, phandle, name, fsid, target);
 		read(fd, buffer, 511);
 		sscanf(buffer, "%s", name);
 		close(fd);
-		printf("delete object: type:%d: name:%s: handle:%s:\n",
+		gossip_err("delete object: type:%d: name:%s: handle:%s:\n",
 			type, name, handle);
 		unlink(handle);
 		chdir("..");
