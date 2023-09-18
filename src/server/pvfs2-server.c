@@ -18,7 +18,6 @@
 #include <getopt.h>
 #include <syslog.h>
 
-#include <sys/prctl.h>
 #include <poll.h>
 
 #ifdef __PVFS2_SEGV_BACKTRACE__
@@ -28,7 +27,6 @@
 
 #define __PINT_REQPROTO_ENCODE_FUNCS_C
 
-#define CHILE2 "pvfs2-change"
 
 #include "pvfs2-internal.h"
 #include "bmi.h"
@@ -181,14 +179,13 @@ static int server_change(int fd);
 static void the_rest(char *notification);
 static int server_initialize(
     PINT_server_status_flag *server_status_flag,
-    job_status_s *job_status_structs,
-    char **argv);
+    job_status_s *job_status_structs);
 static int server_initialize_subsystems(
     PINT_server_status_flag *server_status_flag);
 static int server_setup_signal_handlers(void);
 static int server_check_if_root_directory_created(void);
 static int server_purge_unexpected_recv_machines(void);
-static int server_setup_process_environment(int background, char **argv);
+static int server_setup_process_environment(int background);
 static int server_shutdown(
     PINT_server_status_flag status,
     int ret, int sig);
@@ -365,7 +362,7 @@ int main(int argc, char **argv)
     server_status_flag |= SERVER_JOB_OBJS_ALLOCATED;
 
     /* Initialize the server (many many steps) */
-    ret = server_initialize(&server_status_flag, server_job_status_array, argv);
+    ret = server_initialize(&server_status_flag, server_job_status_array);
     if (ret < 0)
     {
         gossip_err("Error: Could not initialize server; aborting.\n");
@@ -549,8 +546,7 @@ static void remove_pidfile(void)
  */
 static int server_initialize(
     PINT_server_status_flag *server_status_flag,
-    job_status_s *job_status_structs,
-    char **argv)
+    job_status_s *job_status_structs)
 {
     int ret = 0, i = 0; 
     FILE *dummy;
@@ -612,7 +608,7 @@ static int server_initialize(
 
     /* handle backgrounding, setting up working directory, and so on. */
     ret = server_setup_process_environment(
-        s_server_options.server_background, argv);
+        s_server_options.server_background);
     if (ret < 0)
     {
         gossip_err("Error: Could not start server; aborting.\n");
@@ -716,12 +712,11 @@ static int server_initialize(
  * returns 0 on success, -PVFS_EINVAL on failure (details will be logged to
  * gossip)
  */
-static int server_setup_process_environment(int background, char **argv)
+static int server_setup_process_environment(int background)
 {
     pid_t new_pid = 0;
     int pid_fd = -1;
     int rc;
-    int size;
 
     /*
      * Manage a pid file if requested (for init scripts).  Create
@@ -799,16 +794,6 @@ static int server_setup_process_environment(int background, char **argv)
 
              /* Child number two will read from the pipe... */
              close(pipefd[1]);
-
-             /*
-              * give child number two its own name in ps and proc
-              * and all that...
-              */
-             if (prctl(PR_SET_NAME, CHILE2))
-		gossip_err("prctl failed for child 2, errno:%d:\n", errno);
-
-             size = strlen(argv[0]);
-             strncpy(argv[0], CHILE2, size);
 
              /* go off and listen for change notifications forever... */
              rc = server_change(pipefd[0]);
