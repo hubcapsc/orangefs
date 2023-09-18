@@ -67,43 +67,73 @@ static PINT_sm_action final_response_release(
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
     int ret = -1;
     job_id_t tmp_id;
+    char buffer[4096];
+    int rc;
 
-if (s_op->op == PVFS_SERV_CRDIRENT) {
-syslog(LOG_ERR, "+%s crdirent: %d 0 %lu %lu %s %d 0\n",
-__func__, s_op->op, s_op->u.crdirent.new_handle, s_op->u.crdirent.parent_handle,
-s_op->u.crdirent.name, s_op->target_fs_id);
-/* DELETE FROM HERE
-} else if (s_op->op == PVFS_SERV_RMDIRENT) {
-syslog(LOG_ERR, "+%s rmdirent: %d 0 %lu 0 0 %d 0\n",
-__func__, s_op->op, s_op->resp.u.rmdirent.entry_handle,
-s_op->target_fs_id);
-  TO HERE */
-} else if (s_op->op == PVFS_SERV_MKDIR) {
-syslog(LOG_ERR, "+%s mkdir: %d 0 %lu 0 0 %d 0\n",
-__func__, s_op->op, s_op->resp.u.mkdir.handle, s_op->target_fs_id);
-} else if (s_op->op == PVFS_SERV_SETEATTR) {
-syslog(LOG_ERR, "+%s seteattr: %d 0 %lu 0 0 %d 0\n",
-__func__, s_op->op, s_op->target_handle, s_op->target_fs_id);
-} else if (s_op->op == PVFS_SERV_SETATTR) {
-/* else if setattr and link_target == null */
-syslog(LOG_ERR, "+%s setattr: %d %d %lu 0 0 %d 0\n",
-__func__, s_op->op,
-s_op->target_object_attr->objtype,
-s_op->target_handle,
-s_op->target_fs_id);
+    memset(buffer, 0, 4096);
+
+    if (s_op->op == PVFS_SERV_CRDIRENT) {
+
+       sprintf(buffer, "%d 0 %lu %lu %s %d 0",
+         s_op->op, s_op->u.crdirent.new_handle, s_op->u.crdirent.parent_handle,
+         s_op->u.crdirent.name, s_op->target_fs_id);
+
+       rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
+    } else if (s_op->op == PVFS_SERV_MKDIR) {
+
+       sprintf(buffer, "%d 0 %lu 0 0 %d 0",
+         s_op->op, s_op->resp.u.mkdir.handle, s_op->target_fs_id);
+
+       rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
+    } else if (s_op->op == PVFS_SERV_SETEATTR) {
+
+       sprintf(buffer, "%d 0 %lu 0 0 %d 0",
+         s_op->op, s_op->target_handle, s_op->target_fs_id);
+
+       rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
+    } else if ((s_op->op == PVFS_SERV_SETATTR) &&
+               (!(s_op->req->u.setattr.attr.mask & PVFS_ATTR_SYMLNK_TARGET))) {
+               /* else if setattr and link_target == null */
+
+       sprintf(buffer, "%d %d %lu 0 0 %d 0",
+         s_op->op,
+         s_op->target_object_attr->objtype,
+         s_op->target_handle,
+         s_op->target_fs_id);
+
+         rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
 } else if (s_op->op == PVFS_SERV_REMOVE) {
 syslog(LOG_ERR, "+%s remove: %d %d %lu 0 0 %d 0\n",
 __func__, s_op->op,
 s_op->target_object_attr->objtype,
 s_op->target_handle,
 s_op->target_fs_id);
-} else if (s_op->op == PVFS_SERV_IO)
+
+sprintf(buffer, "%d %d %lu 0 0 %d 0",
+s_op->op,
+s_op->target_object_attr->objtype,
+s_op->target_handle,
+s_op->target_fs_id);
+
+rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
+} else if (s_op->op == PVFS_SERV_IO) {
 syslog(LOG_ERR, "+%s io: Handle:%lu: fs_id:%d\n",
 __func__,
 s_op->target_handle,
 s_op->target_fs_id);
-else
+rc = 0;
+} else {
 syslog(LOG_ERR, "+%s %d: \n", __func__, s_op->op);
+rc = 0;
+}
+
+/* deal with rc here somehow... */
+syslog(LOG_ERR, "+%s rc:%d:\n", __func__, rc);
 
     gossip_debug(GOSSIP_SERVER_DEBUG, 
                  "(s_op %p) %s (FR sm) state: release: (error_code = %d)\n",

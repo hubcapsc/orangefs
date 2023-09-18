@@ -910,6 +910,8 @@ static PINT_sm_action setattr_write_symlink_target_if_required(
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
     int ret = 0;
     job_id_t j_id;
+    char buffer[4096];
+    int rc;
 
     /* if we don't need to fill in the symlink target, skip it */
     if (!(s_op->req->u.setattr.attr.mask & PVFS_ATTR_SYMLNK_TARGET))
@@ -933,9 +935,16 @@ static PINT_sm_action setattr_write_symlink_target_if_required(
 
     s_op->val.buffer = s_op->req->u.setattr.attr.u.sym.target_path;
     s_op->val.buffer_sz = s_op->req->u.setattr.attr.u.sym.target_path_len;
-syslog(LOG_ERR, "+%s setattr: %d 0 %lu 0 0 %d %s\n",
-__func__, s_op->op, s_op->req->u.setattr.handle, s_op->req->u.setattr.fs_id, 
-(char *) s_op->val.buffer);
+
+    memset(buffer, 0, 4096);
+
+    sprintf(buffer, "%d 0 %lu 0 0 %d %s", s_op->op,
+      s_op->req->u.setattr.handle, s_op->req->u.setattr.fs_id,
+      (char *) s_op->val.buffer);
+
+    rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
+    gossip_err("+%s: rc:%d:\n", __func__, rc);
 
     gossip_debug(GOSSIP_SETATTR_DEBUG, "  writing %s [%llu,%d,"
                  "len %d]\n", (char *)s_op->key.buffer,

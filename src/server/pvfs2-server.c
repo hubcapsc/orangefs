@@ -827,8 +827,11 @@ static int server_setup_process_environment(int background)
  * 
  * When a MKDIR(11) goes by, remember the handle on a list.
  * 
- * When a SETATTR(5) with a symlink target goes by remember the handle on
- * a list, plus the target.
+ * When a SETATTR(5) goes by, 
+ *   if there's a symlink target, remember the handle on
+ *      a list, plus the target.
+ *   if there is no symlink target,
+ *      tell IRODS a file/dir got setattred.
  * 
  * When a CRDIRENT(7) goes by,
  *   if there's a matching handle on the create-list,
@@ -961,7 +964,7 @@ void the_rest(char *notification) {
 	      close(fd);
 	      chdir("..");
 	    } else {
-	      printf("%s: unhandled setattr\n", __func__);
+              gossip_err("setattr on handle %s\n", handle);
 	    }
 	    break;
 
@@ -989,9 +992,9 @@ void the_rest(char *notification) {
 		sscanf(buffer, "%s \n", target);
 		close(fd);
 		unlink(handle);
-		gossip_err("create symlink %s, handle %s, parent %s, ",
-			name, handle, phandle);
-                        printf("target %s\n", target);
+		gossip_err("create symlink %s, handle %s," 
+                           " parent %s, target %s\n",
+                           name, handle, phandle, target);
 	        chdir("..");
 		break;
 	    }
@@ -1012,8 +1015,8 @@ void the_rest(char *notification) {
 		read(fd, buffer, 511);
 		sscanf(buffer, "%s %s", name, phandle);
 		close(fd);
-		gossip_err("rename handle %s in parent %s to %s\n",
-			handle, phandle, name);
+		gossip_err("rename handle %s to %s in parent %s\n",
+			handle, name, phandle);
 		unlink(handle);
 		chdir("..");
 		break;

@@ -439,6 +439,9 @@ static PINT_sm_action rmdirent_setup_resp(
         struct PINT_smcb *smcb, job_status_s *js_p)
 {
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
+    char buffer[4096];
+    int rc;
+
     /* Set the handle if it was removed */
     if(js_p->error_code == 0)
     {
@@ -453,18 +456,17 @@ static PINT_sm_action rmdirent_setup_resp(
 		     "  succeeded; returning handle %llu in response\n",
 		     llu(s_op->resp.u.rmdirent.entry_handle));
 
-syslog(LOG_ERR, "+%s rmdirent:%d 0 %lu 0 %s %d 0\n",
-__func__, s_op->op,
-s_op->resp.u.rmdirent.entry_handle,
-s_op->req->u.rmdirent.entry,
-s_op->target_fs_id);
-/*
-syslog(LOG_ERR, "+%s rmdirent: op:%d name:%s entry_handle:%lu: fs_id:%d\n",
-__func__, s_op->op,
-s_op->req->u.rmdirent.entry,
-s_op->resp.u.rmdirent.entry_handle,
-s_op->target_fs_id);
-*/
+        memset(buffer, 0, 4096);
+
+        sprintf(buffer, "%d 0 %lu 0 %s %d 0",
+          s_op->op,
+          s_op->resp.u.rmdirent.entry_handle,
+          s_op->req->u.rmdirent.entry,
+          s_op->target_fs_id);
+
+        rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
+        syslog(LOG_ERR, "+%s: rc:%d:\n", __func__, rc);
 
     }
     else
