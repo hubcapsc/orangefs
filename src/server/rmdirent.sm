@@ -456,6 +456,7 @@ static PINT_sm_action rmdirent_setup_resp(
 		     "  succeeded; returning handle %llu in response\n",
 		     llu(s_op->resp.u.rmdirent.entry_handle));
 
+        /* signal the change detector */
         memset(buffer, 0, 4096);
 
         sprintf(buffer, "%d 0 %lu 0 %s %d 0",
@@ -464,9 +465,8 @@ static PINT_sm_action rmdirent_setup_resp(
           s_op->req->u.rmdirent.entry,
           s_op->target_fs_id);
 
-        rc = write(pipefd[1], buffer, strlen(buffer) + 1);
-
-        syslog(LOG_ERR, "+%s: rc:%d:\n", __func__, rc);
+        if ((rc = write(pipefd[1], buffer, strlen(buffer) + 1)) < 0)
+           syslog(LOG_ERR, "%s write rc:%d: errno:%d:\n", __func__, rc, errno);
 
     }
     else

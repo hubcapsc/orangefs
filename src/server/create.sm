@@ -912,16 +912,20 @@ static int setup_resp(
                           llu(s_op->resp.u.create.metafile_handle));
     }
 
-syslog(LOG_ERR, "+%s create: %d 0 %lu 0 0 %d 0\n",
-__func__, s_op->op, s_op->resp.u.create.metafile_handle, s_op->target_fs_id);
+   /*
+    * Stanzas like the following are sprinkled around in several
+    * state machines, they are feeding the change detector.
+    */
 
-memset(buffer, 0, 4096);
-sprintf(buffer, "%d 0 %lu 0 0 %d 0",
-s_op->op, s_op->resp.u.create.metafile_handle, s_op->target_fs_id);
-rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+    memset(buffer, 0, 4096);
 
-syslog(LOG_ERR, "+%s write rc:%d: errno:%d: fd:%d: bufferH%sH\n",
-__func__, rc, errno, pipefd[1], buffer);
+    sprintf(buffer, "%d 0 %lu 0 0 %d 0",
+      s_op->op, s_op->resp.u.create.metafile_handle, s_op->target_fs_id);
+
+    if ((rc = write(pipefd[1], buffer, strlen(buffer) + 1)) < 0)
+      syslog(LOG_ERR, "+%s write rc:%d: errno:%d:\n", __func__, rc, errno);
+
+   /***********************************************************************/
  
     return SM_ACTION_COMPLETE;
 }

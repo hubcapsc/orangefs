@@ -935,6 +935,7 @@ void the_rest(char *notification) {
 /*
  * op, type, handle, phandle, name, fs-id, link-target
  */
+
 	sscanf(notification,
 		"%d %d %s %s %s %s %s",
 		 &op, &type, handle, phandle, name, fsid, target);
@@ -1008,6 +1009,14 @@ void the_rest(char *notification) {
 	    chdir("..");
 	    break;
 
+/* When an RMDIRENT(8) goes by,
+ *   if there's a matching handle on the crdirent-list,
+ *     tell IRODS a rename happened.
+ *   if the handle has no association,
+ *     remember it on a list along with the
+ *       name of the deleted object.
+ */
+ 
 	  case PVFS_SERV_RMDIRENT:
 	    chdir("d.crdirent");
 	    if (!stat(handle, &statbuf)) {
