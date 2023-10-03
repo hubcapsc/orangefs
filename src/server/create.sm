@@ -922,8 +922,10 @@ static int setup_resp(
     sprintf(buffer, "%d 0 %lu 0 0 %d 0",
       s_op->op, s_op->resp.u.create.metafile_handle, s_op->target_fs_id);
 
-    if ((rc = write(pipefd[1], buffer, strlen(buffer) + 1)) < 0)
-      syslog(LOG_ERR, "+%s write rc:%d: errno:%d:\n", __func__, rc, errno);
+    rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
+    if (rc < 0)
+      gossip_err("+%s write rc:%d: errno:%d:\n", __func__, rc, errno);
 
    /***********************************************************************/
  

@@ -98,6 +98,8 @@ static PINT_sm_action final_response_release(
          s_op->target_handle,
          s_op->target_fs_id);
 
+gossip_err("%s: mask:%x:\n", __func__, s_op->req->u.setattr.attr.mask);
+
     } else if (s_op->op == PVFS_SERV_REMOVE) {
 
        sprintf(buffer, "%d %d %lu 0 0 %d 0",
@@ -121,7 +123,7 @@ rc = 0;
       rc = write(pipefd[1], buffer, strlen(buffer) + 1);
 
     if (rc < 0)
-      syslog(LOG_ERR, "+%s write rc:%d: errno:%d:\n", __func__, rc, errno);
+      gossip_err("+%s write rc:%d: errno:%d:\n", __func__, rc, errno);
 
     gossip_debug(GOSSIP_SERVER_DEBUG, 
                  "(s_op %p) %s (FR sm) state: release: (error_code = %d)\n",

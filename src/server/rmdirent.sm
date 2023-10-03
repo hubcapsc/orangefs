@@ -465,8 +465,10 @@ static PINT_sm_action rmdirent_setup_resp(
           s_op->req->u.rmdirent.entry,
           s_op->target_fs_id);
 
-        if ((rc = write(pipefd[1], buffer, strlen(buffer) + 1)) < 0)
-           syslog(LOG_ERR, "%s write rc:%d: errno:%d:\n", __func__, rc, errno);
+        rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+
+        if (rc < 0)
+           gossip_err("%s write rc:%d: errno:%d:\n", __func__, rc, errno);
 
     }
     else
