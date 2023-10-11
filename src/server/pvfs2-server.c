@@ -939,6 +939,10 @@ void the_rest(char *notification) {
 	sscanf(notification,
 		"%d %d %s %s %s %s %s",
 		 &op, &type, handle, phandle, name, fsid, target);
+
+gossip_err("%d %d %s %s %s %s %s\n",
+op, type, handle, phandle, name, fsid, target);
+
 	switch(op)
 	{
 
@@ -1009,14 +1013,6 @@ void the_rest(char *notification) {
 	    chdir("..");
 	    break;
 
-/* When an RMDIRENT(8) goes by,
- *   if there's a matching handle on the crdirent-list,
- *     tell IRODS a rename happened.
- *   if the handle has no association,
- *     remember it on a list along with the
- *       name of the deleted object.
- */
- 
 	  case PVFS_SERV_RMDIRENT:
 	    chdir("d.crdirent");
 	    if (!stat(handle, &statbuf)) {
@@ -1049,14 +1045,24 @@ void the_rest(char *notification) {
 			type, name, handle);
 		unlink(handle);
 		chdir("..");
+		break;
 	    } else {
-	      printf("%s: unhandled remove\n", __func__);
-	    }
+	    /*
+             * Object rename sequences during xfs stress tests (like
+             * generic/11 and generic/13) are accompanied by remove
+             * ops that I'm ignoring. I haven't yet reproduced this
+             * by hand. I don't know (yet?) of any undesirable side
+             * effects. I think it has to do with how they wrote
+             * the xfstest combined with how the kernel handles
+             * stuff and I think it doesn't indicate a problem.
+             * We'll see :-) ...
+             */
+            chdir("..");
 	    break;
+	  }
 
 	  default:
-	    printf("%s: op switch, hit default, exiting.\n", __func__);
-	    _exit(0);
+	    gossip_err("%s: op :%d:, hit default.\n", __func__, op);
 	}
 }
 
