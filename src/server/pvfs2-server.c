@@ -869,8 +869,7 @@ static int server_setup_process_environment(int background)
  *
  */
 
-/* #define LIST_DIR "/opt/orangefs/storage/change" */
-#define LIST_DIR "/tmp/d.foo"
+#define LIST_DIR "/d.lists"
 
 int server_change(int fd) {
 	struct pollfd pfds;
@@ -878,12 +877,20 @@ int server_change(int fd) {
 	int i = 0;
         int rc;
         char c[1];
+	char *list_dir;
+        struct server_configuration_s *user_opts =
+          PINT_server_config_mgr_get_config();
+	
+        list_dir = malloc(strlen(user_opts->data_path) + strlen(LIST_DIR) + 1);
+        strcpy(list_dir, user_opts->data_path);
+        strcat(list_dir, LIST_DIR);
 
-	if (chdir(LIST_DIR)) {
-		gossip_err("%s: chdir to :%s: failed, errno:%d:\n",
-			__func__, LIST_DIR, errno);
-		_exit(0);
-	}
+	mkdir(list_dir, 0700);
+	if (chdir(list_dir)) {
+          gossip_err("%s: cd :%s: errno:%d:\n", __func__, list_dir, errno); 
+          exit(0);			
+        }
+
 	mkdir("d.create", 0700);
 	mkdir("d.mkdir", 0700);
 	mkdir("d.crdirent", 0700);
