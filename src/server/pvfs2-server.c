@@ -176,7 +176,7 @@ static job_status_s *server_job_status_array = NULL;
 
 /* Prototypes for internal functions */
 static int server_change(int fd);
-static void the_rest(char *notification);
+static void the_rest(char *notification, int nfd);
 static int server_initialize(
     PINT_server_status_flag *server_status_flag,
     job_status_s *job_status_structs);
@@ -871,6 +871,15 @@ static int server_setup_process_environment(int background)
 
 #define LIST_DIR "/d.lists"
 
+/*
+ * These sprintf format strings are too ugly to mix in with the code...
+ */
+#define SETATTR_F "{\"op\": \"setattr\", \"name\": \"\", \"type\": \"\", \"handle\": \"%s\"}\n"
+#define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
+#define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n"
+#define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"type\": \"dir\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
+#define D_OBJ_F "{\"op\": \"delete\", \"name\": \"%s\", \"type\": \"%s\", \"handle\": \"%s\"}\n"
+
 int server_change(int fd) {
 	struct pollfd pfds;
 	char buffer[4096];  /* needs to be dynamically sized? */
@@ -880,6 +889,7 @@ int server_change(int fd) {
 	char *list_dir;
         struct server_configuration_s *user_opts =
           PINT_server_config_mgr_get_config();
+        int nfd;
 	
         list_dir = malloc(strlen(user_opts->data_path) + strlen(LIST_DIR) + 1);
         strcpy(list_dir, user_opts->data_path);
@@ -897,6 +907,12 @@ int server_change(int fd) {
 	mkdir("d.rmdirent", 0700);
 	mkdir("d.setattr", 0700);
 
+        if ((nfd = open("notify", O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU)) == -1) {
+          gossip_err("%s: can't open notify file, errno:%d:\n",
+            __func__, errno);
+          exit(0);
+        }
+
 	pfds.fd = fd;
 	pfds.events = POLLIN;
 
@@ -913,7 +929,7 @@ read:			rc = read(pfds.fd, c, 1);
 				if (rc == 1) {
 					buffer[i++] = c[0];
 					if ( c[0] == '\0') {
-						the_rest(buffer);
+						the_rest(buffer, nfd);
 						i = 0;
 					}
 					goto read;
@@ -928,7 +944,12 @@ read:			rc = read(pfds.fd, c, 1);
 	}
 }
 
-void the_rest(char *notification) {
+/*
+ * Some of these string buffers might need to be dynamically sized,
+ * or in some way insured to be long enough to store up to two PATH_MAX
+ * file names plus the other stuff...
+ */
+void the_rest(char *notification, int nfd) {
 	struct stat statbuf;
 	int fd;
 	int op;
@@ -938,7 +959,14 @@ void the_rest(char *notification) {
         char buffer[512];
 	char fsid[256];
 	char target[PATH_MAX];
+        char to_irods[PATH_MAX * 2];
 	int type;
+        const char *types[9];
+
+        types[1] = "file";
+        types[4] = "dir";
+        types[8] = "symlink";
+
 /*
  * op, type, handle, phandle, name, fs-id, link-target
  */
@@ -977,6 +1005,8 @@ op, type, handle, phandle, name, fsid, target);
 	      chdir("..");
 	    } else {
               gossip_err("setattr on handle %s\n", handle);
+              sprintf(to_irods, SETATTR_F, handle);
+              write(nfd, to_irods, strlen(to_irods));
 	    }
 	    break;
 
@@ -986,6 +1016,8 @@ op, type, handle, phandle, name, fsid, target);
 		unlink(handle);
 		gossip_err("create file %s with handle %s in parent %s\n",
 			name, handle, phandle);
+                sprintf(to_irods, C_OBJ_F, name, types[type], handle, phandle);
+                write(nfd, to_irods, strlen(to_irods));
 	        chdir("..");
 		break;
 	    }
@@ -994,6 +1026,8 @@ op, type, handle, phandle, name, fsid, target);
 		unlink(handle);
 		gossip_err("create dir %s with handle %s in parent %s\n",
 			name, handle, phandle);
+                sprintf(to_irods, C_OBJ_F, name, types[type], handle, phandle);
+                write(nfd, to_irods, strlen(to_irods));
 	        chdir("..");
 		break;
 	    }
@@ -1007,6 +1041,10 @@ op, type, handle, phandle, name, fsid, target);
 		gossip_err("create symlink %s, handle %s," 
                            " parent %s, target %s\n",
                            name, handle, phandle, target);
+                sprintf(to_irods,
+                        C_SYMLINK_F,
+                        name, types[type], handle, phandle, target);
+                write(nfd, to_irods, strlen(to_irods));
 	        chdir("..");
 		break;
 	    }
@@ -1029,6 +1067,8 @@ op, type, handle, phandle, name, fsid, target);
 		close(fd);
 		gossip_err("rename handle %s to %s in parent %s\n",
 			handle, name, phandle);
+                sprintf(to_irods, RENAME_F, name, handle, phandle);
+                write(nfd, to_irods, strlen(to_irods));
 		unlink(handle);
 		chdir("..");
 		break;
@@ -1050,6 +1090,8 @@ op, type, handle, phandle, name, fsid, target);
 		close(fd);
 		gossip_err("delete object: type:%d: name:%s: handle:%s:\n",
 			type, name, handle);
+                sprintf(to_irods, D_OBJ_F, name, types[type], handle);
+                write(nfd, to_irods, strlen(to_irods));
 		unlink(handle);
 		chdir("..");
 		break;
