@@ -874,7 +874,7 @@ static int server_setup_process_environment(int background)
 /*
  * These sprintf format strings are too ugly to mix in with the code...
  */
-#define SETATTR_F "{\"op\": \"setattr\", \"name\": \"\", \"type\": \"\", \"handle\": \"%s\"}\n"
+#define SETATTR_F "{\"op\": \"setattr\", \"name\": \"\", \"type\": \"%s\", \"handle\": \"%s\"}\n"
 #define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
 #define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n"
 #define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"type\": \"dir\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
@@ -1004,8 +1004,8 @@ op, type, handle, phandle, name, fsid, target);
 	      close(fd);
 	      chdir("..");
 	    } else {
-              gossip_err("setattr on handle %s\n", handle);
-              sprintf(to_irods, SETATTR_F, handle);
+              gossip_err("setattr on handle %s, type:%d:\n", handle, type);
+              sprintf(to_irods, SETATTR_F, types[type], handle);
               write(nfd, to_irods, strlen(to_irods));
 	    }
 	    break;
@@ -1016,7 +1016,7 @@ op, type, handle, phandle, name, fsid, target);
 		unlink(handle);
 		gossip_err("create file %s with handle %s in parent %s\n",
 			name, handle, phandle);
-                sprintf(to_irods, C_OBJ_F, name, types[type], handle, phandle);
+                sprintf(to_irods, C_OBJ_F, name, "file", handle, phandle);
                 write(nfd, to_irods, strlen(to_irods));
 	        chdir("..");
 		break;
@@ -1026,7 +1026,7 @@ op, type, handle, phandle, name, fsid, target);
 		unlink(handle);
 		gossip_err("create dir %s with handle %s in parent %s\n",
 			name, handle, phandle);
-                sprintf(to_irods, C_OBJ_F, name, types[type], handle, phandle);
+                sprintf(to_irods, C_OBJ_F, name, "dir", handle, phandle);
                 write(nfd, to_irods, strlen(to_irods));
 	        chdir("..");
 		break;

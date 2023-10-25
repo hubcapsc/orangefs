@@ -74,14 +74,16 @@ static PINT_sm_action final_response_release(
 
     if (s_op->op == PVFS_SERV_CRDIRENT) {
 
-       sprintf(buffer, "%d 0 %lu %lu %s %d 0",
-         s_op->op, s_op->u.crdirent.new_handle, s_op->u.crdirent.parent_handle,
-         s_op->u.crdirent.name, s_op->target_fs_id);
+       sprintf(buffer, "%d %d %lu %lu %s %d 0",
+         s_op->op, s_op->attr.objtype, s_op->u.crdirent.new_handle,
+         s_op->u.crdirent.parent_handle, s_op->u.crdirent.name,
+         s_op->target_fs_id);
 
     } else if (s_op->op == PVFS_SERV_MKDIR) {
 
-       sprintf(buffer, "%d 0 %lu 0 0 %d 0",
-         s_op->op, s_op->resp.u.mkdir.handle, s_op->target_fs_id);
+       sprintf(buffer, "%d %d %lu 0 0 %d 0",
+         s_op->op, s_op->attr.objtype,
+         s_op->resp.u.mkdir.handle, s_op->target_fs_id);
 
     } else if (s_op->op == PVFS_SERV_SETEATTR) {
 
@@ -94,7 +96,9 @@ static PINT_sm_action final_response_release(
 
        sprintf(buffer, "%d %d %lu 0 0 %d 0",
          s_op->op,
-         s_op->target_object_attr->objtype,
+         ((s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE) ?
+            s_op->req->u.setattr.attr.objtype :
+            0),
          s_op->target_handle,
          s_op->target_fs_id);
 
@@ -104,7 +108,8 @@ gossip_err("%s: mask:%x:\n", __func__, s_op->req->u.setattr.attr.mask);
 
        sprintf(buffer, "%d %d %lu 0 0 %d 0",
          s_op->op,
-         s_op->target_object_attr->objtype,
+       /*  s_op->target_object_attr->objtype, */
+         s_op->attr.objtype,
          s_op->target_handle,
          s_op->target_fs_id);
 
