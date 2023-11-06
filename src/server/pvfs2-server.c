@@ -827,6 +827,13 @@ static int server_setup_process_environment(int background)
  * 
  * When a MKDIR(11) goes by, remember the handle on a list.
  * 
+ * When a CHDIRENT(9) goes by, remember the handle on a list
+ *   along with the name and phandle.
+ *   In the case of renaming one extant file to another extant file:
+ *     handle = handle of doomed object.
+ *     name = name associated with doomed object.
+ *     phandle = handle receiving the change.
+ * 
  * When a SETATTR(5) goes by, 
  *   if there's a symlink target, remember the handle on
  *      a list, plus the target.
@@ -853,6 +860,11 @@ static int server_setup_process_environment(int background)
  * When a REMOVE(2) goes by,
  *   if there's a matching handle on the rmdirent-list,
  *     tell IRODS that name/handle/type has been deleted.
+ *   if there's a matching handle on the chdirent-list that
+ *     contains a handle with a match on the rmdirent list,
+ *     tell IRODS that the rmdirent-list-handle has been
+ *     renamed to the name in the crdirent-list-handle.
+ *    
  * 
  *             op type  handle   phandle  name  fs-id        link-target
  * create:      1    1  1048581     0       0   2143989784     0
@@ -874,11 +886,11 @@ static int server_setup_process_environment(int background)
 /*
  * These sprintf format strings are too ugly to mix in with the code...
  */
-#define SETATTR_F "{\"op\": \"setattr\", \"name\": \"\", \"type\": \"%s\", \"handle\": \"%s\"}\n"
-#define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
-#define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n"
-#define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"type\": \"dir\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
-#define D_OBJ_F "{\"op\": \"delete\", \"name\": \"%s\", \"type\": \"%s\", \"handle\": \"%s\"}\n"
+#define SETATTR_F "{\"op\": \"setattr\", \"name\": \"\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
+#define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
+#define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n"
+#define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"obj_type\": \"dir\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
+#define D_OBJ_F "{\"op\": \"delete\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
 
 int server_change(int fd) {
 	struct pollfd pfds;
@@ -906,6 +918,7 @@ int server_change(int fd) {
 	mkdir("d.crdirent", 0700);
 	mkdir("d.rmdirent", 0700);
 	mkdir("d.setattr", 0700);
+	mkdir("d.chdirent", 0700);
 
         if ((nfd = open("notify", O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU)) == -1) {
           gossip_err("%s: can't open notify file, errno:%d:\n",
@@ -956,6 +969,8 @@ void the_rest(char *notification, int nfd) {
 	char handle[32];
 	char phandle[32];
 	char name[256];
+	char name2[256];
+	char handle2[32];
         char buffer[512];
 	char fsid[256];
 	char target[PATH_MAX];
@@ -1058,6 +1073,17 @@ op, type, handle, phandle, name, fsid, target);
 	    chdir("..");
 	    break;
 
+	  case PVFS_SERV_CHDIRENT:
+	    chdir("d.chdirent");
+	    fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+	    write(fd, name, strlen(name));
+	    write(fd, " ", 1);
+	    write(fd, phandle, strlen(phandle));
+	    write(fd, " \n", 1);
+	    close(fd);
+	    chdir("..");
+	    break;
+
 	  case PVFS_SERV_RMDIRENT:
 	    chdir("d.crdirent");
 	    if (!stat(handle, &statbuf)) {
@@ -1095,7 +1121,60 @@ op, type, handle, phandle, name, fsid, target);
 		unlink(handle);
 		chdir("..");
 		break;
-	    } else {
+	    }
+/*
+ * rename an existing object to another existing object.
+ *
+ * mv /pvfsmnt/file10 /pvfsmnt/file20
+ *   results in
+ * 9 16 1049423 1049428 file20 2095048189 0
+ * 8 0 1049428 0 file10 2095048189 0
+ * 2 1 1049423 0 0 2095048189 0
+ *   
+ * 9 16 1049423 1049428 file20 2095048189 0
+ *   results in
+ * # cat /opt/orangefs/storage/data/d.lists/d.chdirent/1049423
+ * file20 1049428
+ *
+ * 8 0 1049428 0 file10 2095048189 0
+ *   results in
+ * # cat /opt/orangefs/storage/data/d.lists/d.rmdirent/1049428
+ * file10
+ *
+ * Now "2 1 1049423 0 0 2095048189 0" has come along, and
+ * we're here in the REMOVE handler.
+ *
+ * if there's a matching handle on the chdirent-list that
+ * contains a handle with a match on the rmdirent list,
+ * tell IRODS to rename the name listed with the rmdirent
+ * handle to the name listed with the chdirent handle.  asdf   
+ *
+ */
+            chdir("../d.chdirent");
+            if (!stat(handle, &statbuf)) {
+	    	fd = open(handle, O_RDONLY, S_IRWXU);
+		read(fd, buffer, 511);
+		sscanf(buffer, "%s %s", name2, handle2);
+gossip_err("%s: name2:%s: handle2:%s:\n", __func__, name2, handle2);
+		close(fd);
+	        unlink(handle);
+                chdir("../d.rmdirent");
+                if (!stat(handle2, &statbuf)) {
+	    	  fd = open(handle, O_RDONLY, S_IRWXU);
+		  read(fd, buffer, 511);
+		  sscanf(buffer, "%s", name);
+		  close(fd);
+		  gossip_err("rename handle %s to %s in parent %s\n",
+                    handle, name, phandle);
+                  sprintf(to_irods, RENAME_F, name, handle, phandle);
+                  write(nfd, to_irods, strlen(to_irods));
+                  unlink(handle2);
+                  chdir("..");
+                  break;
+                }
+              chdir("..");
+              gossip_err("%s: didn't plan on getting here one.\n", __func__);
+            } else {
 	    /*
              * Object rename sequences during xfs stress tests (like
              * generic/11 and generic/13) are accompanied by remove

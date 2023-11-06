@@ -71,12 +71,26 @@ static PINT_sm_action final_response_release(
     int rc;
 
     memset(buffer, 0, 4096);
+syslog(LOG_ERR, "+%s %d: \n", __func__, s_op->op);
 
     if (s_op->op == PVFS_SERV_CRDIRENT) {
 
        sprintf(buffer, "%d %d %lu %lu %s %d 0",
          s_op->op, s_op->attr.objtype, s_op->u.crdirent.new_handle,
          s_op->u.crdirent.parent_handle, s_op->u.crdirent.name,
+         s_op->target_fs_id);
+syslog(LOG_ERR, "%s: crdirent:%s:\n", __func__, buffer);
+
+    } else if (s_op->op == PVFS_SERV_CHDIRENT) {
+
+       /* don't know parent handle. */
+       /*sprintf(buffer, "%d %d %lu 0 0 %d 0", */
+       sprintf(buffer, "%d %d %lu %lu %s %d 0",
+         s_op->op, s_op->attr.objtype,
+         /*s_op->resp.u.chdirent.old_dirent_handle, s_op->target_fs_id); */
+         s_op->resp.u.chdirent.old_dirent_handle,
+         s_op->req->u.chdirent.new_dirent_handle,
+         s_op->req->u.chdirent.entry,
          s_op->target_fs_id);
 
     } else if (s_op->op == PVFS_SERV_MKDIR) {
@@ -120,7 +134,6 @@ s_op->target_handle,
 s_op->target_fs_id);
 rc = 0;
 } else {
-syslog(LOG_ERR, "+%s %d: \n", __func__, s_op->op);
 rc = 0;
 }
 
