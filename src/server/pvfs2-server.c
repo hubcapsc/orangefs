@@ -890,6 +890,7 @@ static int server_setup_process_environment(int background)
 #define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
 #define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n"
 #define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"obj_type\": \"dir\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
+#define RENAME_F2 "{\"op\": \"rename\", \"name\": \"%s\", \"handle\": \"%s\", \"old_handle\": \"%s\"}\n"
 #define D_OBJ_F "{\"op\": \"delete\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
 
 int server_change(int fd) {
@@ -1164,14 +1165,17 @@ gossip_err("%s: name2:%s: handle2:%s:\n", __func__, name2, handle2);
 		  read(fd, buffer, 511);
 		  sscanf(buffer, "%s", name);
 		  close(fd);
-		  gossip_err("rename handle %s to %s in parent %s\n",
-                    handle, name, phandle);
-                  sprintf(to_irods, RENAME_F, name, handle, phandle);
+		  gossip_err("rename %s %s %s\n", 
+                    name, handle2, handle);
+                  sprintf(to_irods, RENAME_F2, name, handle2, handle);
                   write(nfd, to_irods, strlen(to_irods));
                   unlink(handle2);
                   chdir("..");
                   break;
                 }
+/*
+#define RENAME_F2 "{\"op\": \"rename\", \"name\": \"%s\", \"handle\": \"%s\", \"old_handle\": \"%s\"}\n"
+*/
               chdir("..");
               gossip_err("%s: didn't plan on getting here one.\n", __func__);
             } else {

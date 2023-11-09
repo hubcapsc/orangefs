@@ -79,10 +79,22 @@ syslog(LOG_ERR, "+%s %d: \n", __func__, s_op->op);
          s_op->op, s_op->attr.objtype, s_op->u.crdirent.new_handle,
          s_op->u.crdirent.parent_handle, s_op->u.crdirent.name,
          s_op->target_fs_id);
-syslog(LOG_ERR, "%s: crdirent:%s:\n", __func__, buffer);
 
     } else if (s_op->op == PVFS_SERV_CHDIRENT) {
 
+gossip_err("%s: req.new_dirent_handle:%lu: req.handle:%lu:\n", __func__,
+  s_op->req->u.chdirent.new_dirent_handle,
+  s_op->req->u.chdirent.handle);
+gossip_err("%s: resp.old_dirent_handle:%lu:\n", __func__,
+  s_op->resp.u.chdirent.old_dirent_handle);
+gossip_err("%s: target_handle:%lu: mask:%x:\n", __func__,
+  s_op->target_handle, s_op->target_object_attr->mask); 
+gossip_err("%s: u.chdirent.dirdata_handle:%lu:\n", __func__,
+  s_op->u.chdirent.dirdata_handle);
+gossip_err("%s: u.chdirent.old_dirent_handle:%lu:\n", __func__,
+  s_op->u.chdirent.old_dirent_handle);
+gossip_err("%s: u.chdirent.new_dirent_handle:%lu:\n", __func__,
+  s_op->u.chdirent.new_dirent_handle);
        /* don't know parent handle. */
        /*sprintf(buffer, "%d %d %lu 0 0 %d 0", */
        sprintf(buffer, "%d %d %lu %lu %s %d 0",
