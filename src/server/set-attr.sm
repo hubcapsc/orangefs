@@ -942,6 +942,12 @@ static PINT_sm_action setattr_write_symlink_target_if_required(
       s_op->req->u.setattr.handle, s_op->req->u.setattr.fs_id,
       (char *) s_op->val.buffer);
 
+if (s_op->attr.mask & PVFS_ATTR_COMMON_UID)
+gossip_err("symlink: uid:%d:\n", s_op->attr.owner);
+if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
+gossip_err("symlink: type:%d:\n", s_op->attr.objtype);
+
+
     rc = write(pipefd[1], buffer, strlen(buffer) + 1);
 
     if (rc < 0)

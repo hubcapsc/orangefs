@@ -886,7 +886,7 @@ static int server_setup_process_environment(int background)
 /*
  * These sprintf format strings are too ugly to mix in with the code...
  */
-#define SETATTR_F "{\"op\": \"setattr\", \"name\": \"\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
+#define SETATTR_F "{\"op\": \"setattr\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
 #define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
 #define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n"
 #define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"obj_type\": \"dir\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
@@ -979,6 +979,7 @@ void the_rest(char *notification, int nfd) {
 	int type;
         const char *types[9];
 
+        types[0] = "unknown";
         types[1] = "file";
         types[4] = "dir";
         types[8] = "symlink";
@@ -1016,7 +1017,7 @@ op, type, handle, phandle, name, fsid, target);
 	      chdir("d.setattr");
 	      fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
 	      write(fd, target, strlen(target));
-	      write(fd, " \n", 1);
+	      write(fd, "\0", 1);
 	      close(fd);
 	      chdir("..");
 	    } else {
@@ -1051,11 +1052,12 @@ op, type, handle, phandle, name, fsid, target);
 	    if (!stat(handle, &statbuf)) {
 	    	fd = open(handle, O_RDONLY, S_IRWXU);
 		read(fd, buffer, 511);
-		sscanf(buffer, "%s \n", target);
+		sscanf(buffer, "%s", target);
+gossip_err("%s: buffer:%s:\n", __func__, buffer);
 		close(fd);
 		unlink(handle);
-		gossip_err("create symlink %s, handle %s," 
-                           " parent %s, target %s\n",
+		gossip_err("create symlink :%s:, handle :%s:," 
+                           " parent :%s:, target :%s:\n",
                            name, handle, phandle, target);
                 sprintf(to_irods,
                         C_SYMLINK_F,
