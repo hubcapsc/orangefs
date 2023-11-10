@@ -924,7 +924,7 @@ if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
 gossip_err("create: type:%d:\n", s_op->attr.objtype);
 
 
-    sprintf(buffer, "%d 0 %lu 0 0 %d 0",
+    sprintf(buffer, "%d 0 %lu 0 0 %d 0 999",
       s_op->op, s_op->resp.u.create.metafile_handle, s_op->target_fs_id);
 
     rc = write(pipefd[1], buffer, strlen(buffer) + 1);

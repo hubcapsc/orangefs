@@ -938,14 +938,22 @@ static PINT_sm_action setattr_write_symlink_target_if_required(
 
     memset(buffer, 0, 4096);
 
-    sprintf(buffer, "%d 0 %lu 0 0 %d %s", s_op->op,
-      s_op->req->u.setattr.handle, s_op->req->u.setattr.fs_id,
-      (char *) s_op->val.buffer);
+    sprintf(buffer, "%d %d %lu 0 0 %d %s %d",
+      s_op->op,
+      ((s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE) ?
+        s_op->req->u.setattr.attr.objtype :
+          0),
+      s_op->req->u.setattr.handle,
+      s_op->req->u.setattr.fs_id,
+      (char *) s_op->val.buffer,
+      ((s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_UID) ?
+        s_op->req->u.setattr.attr.owner :
+          65534));
 
-if (s_op->attr.mask & PVFS_ATTR_COMMON_UID)
-gossip_err("symlink: uid:%d:\n", s_op->attr.owner);
-if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
-gossip_err("symlink: type:%d:\n", s_op->attr.objtype);
+if (s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_UID)
+gossip_err("symlink: uid:%d:\n", s_op->req->u.setattr.attr.owner);
+if (s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE)
+gossip_err("symlink: type:%d:\n", s_op->req->u.setattr.attr.objtype);
 
 
     rc = write(pipefd[1], buffer, strlen(buffer) + 1);

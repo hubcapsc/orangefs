@@ -836,7 +836,7 @@ static int server_setup_process_environment(int background)
  * 
  * When a SETATTR(5) goes by, 
  *   if there's a symlink target, remember the handle on
- *      a list, plus the target.
+ *      a list, plus the target and UID.
  *   if there is no symlink target,
  *      tell IRODS a file/dir got setattred.
  * 
@@ -888,7 +888,8 @@ static int server_setup_process_environment(int background)
  */
 #define SETATTR_F "{\"op\": \"setattr\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
 #define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
-#define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n"
+#define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\", \"uid\": \"%s\"}\n"
+/*#define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n" */
 #define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"obj_type\": \"dir\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
 #define RENAME_F2 "{\"op\": \"rename\", \"name\": \"%s\", \"handle\": \"%s\", \"old_handle\": \"%s\"}\n"
 #define D_OBJ_F "{\"op\": \"delete\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
@@ -977,7 +978,9 @@ void the_rest(char *notification, int nfd) {
 	char target[PATH_MAX];
         char to_irods[PATH_MAX * 2];
 	int type;
+        char ctype[32];
         const char *types[9];
+        char uid[32];
 
         types[0] = "unknown";
         types[1] = "file";
@@ -989,11 +992,11 @@ void the_rest(char *notification, int nfd) {
  */
 
 	sscanf(notification,
-		"%d %d %s %s %s %s %s",
-		 &op, &type, handle, phandle, name, fsid, target);
+		"%d %d %s %s %s %s %s %s",
+		 &op, &type, handle, phandle, name, fsid, target, uid);
 
-gossip_err("%d %d %s %s %s %s %s\n",
-op, type, handle, phandle, name, fsid, target);
+gossip_err("%d %d %s %s %s %s %s %s\n",
+op, type, handle, phandle, name, fsid, target, uid);
 
 	switch(op)
 	{
@@ -1013,10 +1016,15 @@ op, type, handle, phandle, name, fsid, target);
 	    break;
 
 	  case PVFS_SERV_SETATTR:
-	    if (strcmp(target,"0")) {
+	    if (strcmp(target,"0")) { /* make it work with null instead of 0 */
 	      chdir("d.setattr");
 	      fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
 	      write(fd, target, strlen(target));
+	      write(fd, " ", 1);
+	      write(fd, uid, strlen(uid));
+	      write(fd, " ", 1);
+              sprintf(ctype, "%d", type);
+	      write(fd, ctype, strlen(ctype));
 	      write(fd, "\0", 1);
 	      close(fd);
 	      chdir("..");
@@ -1052,16 +1060,16 @@ op, type, handle, phandle, name, fsid, target);
 	    if (!stat(handle, &statbuf)) {
 	    	fd = open(handle, O_RDONLY, S_IRWXU);
 		read(fd, buffer, 511);
-		sscanf(buffer, "%s", target);
+		sscanf(buffer, "%s %s %d", target, uid, &type);
 gossip_err("%s: buffer:%s:\n", __func__, buffer);
 		close(fd);
 		unlink(handle);
 		gossip_err("create symlink :%s:, handle :%s:," 
-                           " parent :%s:, target :%s:\n",
-                           name, handle, phandle, target);
+                           " parent :%s:, target :%s:, uid:%s:, type:%d:\n",
+                           name, handle, phandle, target, uid, type);
                 sprintf(to_irods,
                         C_SYMLINK_F,
-                        name, types[type], handle, phandle, target);
+                        name, types[type], handle, phandle, target, uid);
                 write(nfd, to_irods, strlen(to_irods));
 	        chdir("..");
 		break;
@@ -1150,7 +1158,7 @@ gossip_err("%s: buffer:%s:\n", __func__, buffer);
  * if there's a matching handle on the chdirent-list that
  * contains a handle with a match on the rmdirent list,
  * tell IRODS to rename the name listed with the rmdirent
- * handle to the name listed with the chdirent handle.  asdf   
+ * handle to the name listed with the chdirent handle.
  *
  */
             chdir("../d.chdirent");

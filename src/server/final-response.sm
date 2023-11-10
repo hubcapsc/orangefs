@@ -79,7 +79,7 @@ gossip_err("crdirent: uid:%d:\n", s_op->attr.owner);
 if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
 gossip_err("crdirent: type:%d:\n", s_op->attr.objtype);
 
-       sprintf(buffer, "%d %d %lu %lu %s %d 0",
+       sprintf(buffer, "%d %d %lu %lu %s %d 0 999",
          s_op->op, s_op->attr.objtype, s_op->u.crdirent.new_handle,
          s_op->u.crdirent.parent_handle, s_op->u.crdirent.name,
          s_op->target_fs_id);
@@ -101,7 +101,7 @@ gossip_err("%s: u.chdirent.new_dirent_handle:%lu:\n", __func__,
   s_op->u.chdirent.new_dirent_handle);
        /* don't know parent handle. */
        /*sprintf(buffer, "%d %d %lu 0 0 %d 0", */
-       sprintf(buffer, "%d %d %lu %lu %s %d 0",
+       sprintf(buffer, "%d %d %lu %lu %s %d 0 999",
          s_op->op, s_op->attr.objtype,
          /*s_op->resp.u.chdirent.old_dirent_handle, s_op->target_fs_id); */
          s_op->resp.u.chdirent.old_dirent_handle,
@@ -117,36 +117,39 @@ if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
 gossip_err("mkdir: type:%d:\n", s_op->attr.objtype);
 
 
-       sprintf(buffer, "%d %d %lu 0 0 %d 0",
+       sprintf(buffer, "%d %d %lu 0 0 %d 0 999",
          s_op->op, s_op->attr.objtype,
          s_op->resp.u.mkdir.handle, s_op->target_fs_id);
 
     } else if (s_op->op == PVFS_SERV_SETEATTR) {
 
-       sprintf(buffer, "%d 0 %lu 0 0 %d 0",
+       sprintf(buffer, "%d 0 %lu 0 0 %d 0 999",
          s_op->op, s_op->target_handle, s_op->target_fs_id);
 
     } else if ((s_op->op == PVFS_SERV_SETATTR) &&
                (!(s_op->req->u.setattr.attr.mask & PVFS_ATTR_SYMLNK_TARGET))) {
                /* else if setattr and link_target == null */
 
-if (s_op->attr.mask & PVFS_ATTR_COMMON_UID)
-gossip_err("setattr: uid:%d:\n", s_op->attr.owner);
-if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
-gossip_err("setattr: type:%d:\n", s_op->attr.objtype);
-       sprintf(buffer, "%d %d %lu 0 0 %d 0",
+if (s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_UID)
+gossip_err("setattr: uid:%d:\n", s_op->req->u.setattr.attr.owner);
+if (s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE)
+gossip_err("setattr: type:%d:\n", s_op->req->u.setattr.attr.objtype);
+       sprintf(buffer, "%d %d %lu 0 0 %d 0 %d",
          s_op->op,
          ((s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE) ?
-            s_op->req->u.setattr.attr.objtype :
+            s_op->attr.objtype :
             0),
          s_op->target_handle,
-         s_op->target_fs_id);
+         s_op->target_fs_id,
+         ((s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_UID) ?
+            s_op->attr.owner :
+            65534));
 
 gossip_err("%s: mask:%x:\n", __func__, s_op->req->u.setattr.attr.mask);
 
     } else if (s_op->op == PVFS_SERV_REMOVE) {
 
-       sprintf(buffer, "%d %d %lu 0 0 %d 0",
+       sprintf(buffer, "%d %d %lu 0 0 %d 0 999",
          s_op->op,
        /*  s_op->target_object_attr->objtype, */
          s_op->attr.objtype,
