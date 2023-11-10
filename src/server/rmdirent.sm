@@ -459,11 +459,12 @@ static PINT_sm_action rmdirent_setup_resp(
         /* signal the change detector */
         memset(buffer, 0, 4096);
 
-        sprintf(buffer, "%d 0 %lu 0 %s %d 0 999",
+        sprintf(buffer, "%d 0 %lu 0 %s %d 0 %d",
           s_op->op,
           s_op->resp.u.rmdirent.entry_handle,
           s_op->req->u.rmdirent.entry,
-          s_op->target_fs_id);
+          s_op->target_fs_id,
+          s_op->attr.owner);
 
         rc = write(pipefd[1], buffer, strlen(buffer) + 1);
 

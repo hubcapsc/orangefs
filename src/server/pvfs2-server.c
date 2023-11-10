@@ -887,12 +887,11 @@ static int server_setup_process_environment(int background)
  * These sprintf format strings are too ugly to mix in with the code...
  */
 #define SETATTR_F "{\"op\": \"setattr\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
-#define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
+#define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"uid\": \"%s\"}\n"
 #define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\", \"uid\": \"%s\"}\n"
-/*#define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\"}\n" */
 #define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"obj_type\": \"dir\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
 #define RENAME_F2 "{\"op\": \"rename\", \"name\": \"%s\", \"handle\": \"%s\", \"old_handle\": \"%s\"}\n"
-#define D_OBJ_F "{\"op\": \"delete\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
+#define D_OBJ_F "{\"op\": \"delete\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"uid\": \"%s\"}\n"
 
 int server_change(int fd) {
 	struct pollfd pfds;
@@ -1011,6 +1010,8 @@ op, type, handle, phandle, name, fsid, target, uid);
 	  case PVFS_SERV_MKDIR:
 	    chdir("d.mkdir");
 	    fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
+            write(fd, uid, strlen(uid));
+	    write(fd, "\0", 1);
 	    close(fd);
 	    chdir("..");
 	    break;
@@ -1041,17 +1042,20 @@ op, type, handle, phandle, name, fsid, target, uid);
 		unlink(handle);
 		gossip_err("create file %s with handle %s in parent %s\n",
 			name, handle, phandle);
-                sprintf(to_irods, C_OBJ_F, name, "file", handle, phandle);
+                sprintf(to_irods, C_OBJ_F, name, "file", handle, phandle, "999");
                 write(nfd, to_irods, strlen(to_irods));
 	        chdir("..");
 		break;
 	    }
 	    chdir("../d.mkdir");
 	    if (!stat(handle, &statbuf)) {
+	    	fd = open(handle, O_RDONLY, S_IRWXU);
+		read(fd, buffer, 511);
+		sscanf(buffer, "%s", uid);
 		unlink(handle);
 		gossip_err("create dir %s with handle %s in parent %s\n",
 			name, handle, phandle);
-                sprintf(to_irods, C_OBJ_F, name, "dir", handle, phandle);
+                sprintf(to_irods, C_OBJ_F, name, "dir", handle, phandle, uid);
                 write(nfd, to_irods, strlen(to_irods));
 	        chdir("..");
 		break;
@@ -1064,9 +1068,9 @@ op, type, handle, phandle, name, fsid, target, uid);
 gossip_err("%s: buffer:%s:\n", __func__, buffer);
 		close(fd);
 		unlink(handle);
-		gossip_err("create symlink :%s:, handle :%s:," 
-                           " parent :%s:, target :%s:, uid:%s:, type:%d:\n",
-                           name, handle, phandle, target, uid, type);
+gossip_err("create symlink :%s:, handle :%s:," 
+" parent :%s:, target :%s:, uid:%s:, type:%d:\n",
+name, handle, phandle, target, uid, type);
                 sprintf(to_irods,
                         C_SYMLINK_F,
                         name, types[type], handle, phandle, target, uid);
@@ -1113,7 +1117,9 @@ gossip_err("%s: buffer:%s:\n", __func__, buffer);
 	    chdir("../d.rmdirent");
 	    fd = open(handle, O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU);
 	    write(fd, name, strlen(name));
-	    write(fd, " \n", 1);
+	    write(fd, " ", 1);   /* don't need this? */
+	    write(fd, uid, strlen(uid));   /* don't need this? */
+	    write(fd, "\0", 1);
 	    close(fd);
 	    chdir("..");
 	    break;
@@ -1125,9 +1131,9 @@ gossip_err("%s: buffer:%s:\n", __func__, buffer);
 		read(fd, buffer, 511);
 		sscanf(buffer, "%s", name);
 		close(fd);
-		gossip_err("delete object: type:%d: name:%s: handle:%s:\n",
-			type, name, handle);
-                sprintf(to_irods, D_OBJ_F, name, types[type], handle);
+		gossip_err("delete object: type:%d: name:%s: handle:%s: uid:%s:\n",
+			type, name, handle, uid);
+                sprintf(to_irods, D_OBJ_F, name, types[type], handle, uid);
                 write(nfd, to_irods, strlen(to_irods));
 		unlink(handle);
 		chdir("..");

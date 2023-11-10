@@ -116,11 +116,14 @@ gossip_err("mkdir: uid:%d:\n", s_op->attr.owner);
 if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
 gossip_err("mkdir: type:%d:\n", s_op->attr.objtype);
 
-
-       sprintf(buffer, "%d %d %lu 0 0 %d 0 999",
-         s_op->op, s_op->attr.objtype,
-         s_op->resp.u.mkdir.handle, s_op->target_fs_id);
-
+       sprintf(buffer, "%d %d %lu 0 0 %d 0 %d",
+         s_op->op,
+         s_op->attr.objtype,
+         s_op->resp.u.mkdir.handle,
+         s_op->target_fs_id,
+         ((s_op->attr.mask & PVFS_ATTR_COMMON_UID) ?
+            s_op->attr.owner :
+            65534));
     } else if (s_op->op == PVFS_SERV_SETEATTR) {
 
        sprintf(buffer, "%d 0 %lu 0 0 %d 0 999",
@@ -149,12 +152,17 @@ gossip_err("%s: mask:%x:\n", __func__, s_op->req->u.setattr.attr.mask);
 
     } else if (s_op->op == PVFS_SERV_REMOVE) {
 
-       sprintf(buffer, "%d %d %lu 0 0 %d 0 999",
+       sprintf(buffer, "%d %d %lu 0 0 %d 0 %d",
          s_op->op,
        /*  s_op->target_object_attr->objtype, */
          s_op->attr.objtype,
          s_op->target_handle,
-         s_op->target_fs_id);
+         s_op->target_fs_id,
+         s_op->attr.owner);
+gossip_err("%s: s_op->req->u.remove.credential.userid:%d:\n", __func__,
+s_op->req->u.remove.credential.userid);
+gossip_err("%s: s_op->attr.owner:%d:\n", __func__,
+s_op->attr.owner);
 
 } else if (s_op->op == PVFS_SERV_IO) {
 syslog(LOG_ERR, "+%s io: Handle:%lu: fs_id:%d\n",
