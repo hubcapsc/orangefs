@@ -18,6 +18,7 @@
 #include "pint-perf-counter.h"
 #include "pint-security.h"
 #include "pint-uid-map.h"
+#include "pvfs2-notify.h"
 
 #define REPLACE_DONE 100
 
@@ -836,7 +837,7 @@ static int setup_resp(
         struct PINT_smcb *smcb, job_status_s *js_p)
 {    
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
-    char buffer[4096];
+    char buffer[BUFFER_MAX];
     int rc;
 
 
@@ -915,24 +916,23 @@ static int setup_resp(
    /*
     * Stanzas like the following are sprinkled around in several
     * state machines, they are feeding the change detector.
+    *
+    * The last value in the sprintf is UID. If we don't know it,
+    * mark it as 65534 which is generally the "nobody" user.
     */
-
-    memset(buffer, 0, 4096);
-if (s_op->attr.mask & PVFS_ATTR_COMMON_UID)
-gossip_err("create: uid:%d:\n", s_op->attr.owner);
-if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
-gossip_err("create: type:%d:\n", s_op->attr.objtype);
-
-
-    sprintf(buffer, "%d 0 %lu 0 0 %d 0 999",
-      s_op->op, s_op->resp.u.create.metafile_handle, s_op->target_fs_id);
-
+    sprintf(buffer, "%d %d %lu 0 0 %d 0 %d",
+      s_op->op,
+      ((s_op->attr.mask & PVFS_ATTR_COMMON_TYPE) ?
+        s_op->attr.objtype :
+          0),
+      s_op->resp.u.create.metafile_handle,
+      s_op->target_fs_id,
+      ((s_op->attr.mask & PVFS_ATTR_COMMON_UID) ?
+        s_op->attr.owner :
+          65534));
     rc = write(pipefd[1], buffer, strlen(buffer) + 1);
-
     if (rc < 0)
       gossip_err("+%s write rc:%d: errno:%d:\n", __func__, rc, errno);
-
-   /***********************************************************************/
  
     return SM_ACTION_COMPLETE;
 }

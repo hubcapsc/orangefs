@@ -19,6 +19,7 @@
 #include "pint-uid-map.h"
 #include "pint-cached-config.h"
 #include "dist-dir-utils.h"
+#include "pvfs2-notify.h"
 
 enum
 {
@@ -910,7 +911,7 @@ static PINT_sm_action setattr_write_symlink_target_if_required(
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
     int ret = 0;
     job_id_t j_id;
-    char buffer[4096];
+    char buffer[BUFFER_MAX];
     int rc;
 
     /* if we don't need to fill in the symlink target, skip it */
@@ -936,8 +937,6 @@ static PINT_sm_action setattr_write_symlink_target_if_required(
     s_op->val.buffer = s_op->req->u.setattr.attr.u.sym.target_path;
     s_op->val.buffer_sz = s_op->req->u.setattr.attr.u.sym.target_path_len;
 
-    memset(buffer, 0, 4096);
-
     sprintf(buffer, "%d %d %lu 0 0 %d %s %d",
       s_op->op,
       ((s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE) ?
@@ -949,12 +948,6 @@ static PINT_sm_action setattr_write_symlink_target_if_required(
       ((s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_UID) ?
         s_op->req->u.setattr.attr.owner :
           65534));
-
-if (s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_UID)
-gossip_err("symlink: uid:%d:\n", s_op->req->u.setattr.attr.owner);
-if (s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE)
-gossip_err("symlink: type:%d:\n", s_op->req->u.setattr.attr.objtype);
-
 
     rc = write(pipefd[1], buffer, strlen(buffer) + 1);
 

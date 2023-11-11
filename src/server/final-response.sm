@@ -13,6 +13,7 @@
 #include "pvfs2-attr.h"
 #include "pvfs2-internal.h"
 #include "pint-perf-counter.h"
+#include "pvfs2-notify.h"
 
 /* final-response state machine:
  * This is used as a nested state machine to perform two primary tasks:
@@ -67,43 +68,24 @@ static PINT_sm_action final_response_release(
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
     int ret = -1;
     job_id_t tmp_id;
-    char buffer[4096];
+    char buffer[BUFFER_MAX];
     int rc;
 
-    memset(buffer, 0, 4096);
-syslog(LOG_ERR, "+%s %d: \n", __func__, s_op->op);
+    /* buffer will be used as a string, perhaps empty... */
+    buffer[0] = '\0';
 
     if (s_op->op == PVFS_SERV_CRDIRENT) {
-if (s_op->attr.mask & PVFS_ATTR_COMMON_UID)
-gossip_err("crdirent: uid:%d:\n", s_op->attr.owner);
-if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
-gossip_err("crdirent: type:%d:\n", s_op->attr.objtype);
 
-       sprintf(buffer, "%d %d %lu %lu %s %d 0 999",
+       sprintf(buffer, "%d %d %lu %lu %s %d 0 65534",
          s_op->op, s_op->attr.objtype, s_op->u.crdirent.new_handle,
          s_op->u.crdirent.parent_handle, s_op->u.crdirent.name,
          s_op->target_fs_id);
 
     } else if (s_op->op == PVFS_SERV_CHDIRENT) {
 
-gossip_err("%s: req.new_dirent_handle:%lu: req.handle:%lu:\n", __func__,
-  s_op->req->u.chdirent.new_dirent_handle,
-  s_op->req->u.chdirent.handle);
-gossip_err("%s: resp.old_dirent_handle:%lu:\n", __func__,
-  s_op->resp.u.chdirent.old_dirent_handle);
-gossip_err("%s: target_handle:%lu: mask:%x:\n", __func__,
-  s_op->target_handle, s_op->target_object_attr->mask); 
-gossip_err("%s: u.chdirent.dirdata_handle:%lu:\n", __func__,
-  s_op->u.chdirent.dirdata_handle);
-gossip_err("%s: u.chdirent.old_dirent_handle:%lu:\n", __func__,
-  s_op->u.chdirent.old_dirent_handle);
-gossip_err("%s: u.chdirent.new_dirent_handle:%lu:\n", __func__,
-  s_op->u.chdirent.new_dirent_handle);
        /* don't know parent handle. */
-       /*sprintf(buffer, "%d %d %lu 0 0 %d 0", */
-       sprintf(buffer, "%d %d %lu %lu %s %d 0 999",
+       sprintf(buffer, "%d %d %lu %lu %s %d 0 65534",
          s_op->op, s_op->attr.objtype,
-         /*s_op->resp.u.chdirent.old_dirent_handle, s_op->target_fs_id); */
          s_op->resp.u.chdirent.old_dirent_handle,
          s_op->req->u.chdirent.new_dirent_handle,
          s_op->req->u.chdirent.entry,
@@ -111,32 +93,29 @@ gossip_err("%s: u.chdirent.new_dirent_handle:%lu:\n", __func__,
 
     } else if (s_op->op == PVFS_SERV_MKDIR) {
 
-if (s_op->attr.mask & PVFS_ATTR_COMMON_UID)
-gossip_err("mkdir: uid:%d:\n", s_op->attr.owner);
-if (s_op->attr.mask & PVFS_ATTR_COMMON_TYPE)
-gossip_err("mkdir: type:%d:\n", s_op->attr.objtype);
-
        sprintf(buffer, "%d %d %lu 0 0 %d 0 %d",
          s_op->op,
-         s_op->attr.objtype,
+         ((s_op->attr.mask & PVFS_ATTR_COMMON_TYPE) ?
+           s_op->attr.objtype:
+           0),
          s_op->resp.u.mkdir.handle,
          s_op->target_fs_id,
          ((s_op->attr.mask & PVFS_ATTR_COMMON_UID) ?
             s_op->attr.owner :
             65534));
+
     } else if (s_op->op == PVFS_SERV_SETEATTR) {
 
-       sprintf(buffer, "%d 0 %lu 0 0 %d 0 999",
+       sprintf(buffer, "%d 0 %lu 0 0 %d 0 65534",
          s_op->op, s_op->target_handle, s_op->target_fs_id);
 
     } else if ((s_op->op == PVFS_SERV_SETATTR) &&
                (!(s_op->req->u.setattr.attr.mask & PVFS_ATTR_SYMLNK_TARGET))) {
-               /* else if setattr and link_target == null */
 
-if (s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_UID)
-gossip_err("setattr: uid:%d:\n", s_op->req->u.setattr.attr.owner);
-if (s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE)
-gossip_err("setattr: type:%d:\n", s_op->req->u.setattr.attr.objtype);
+       /*
+        * Sometimes setattrs are associated with symlinks, but not
+        * if you get here.
+        */
        sprintf(buffer, "%d %d %lu 0 0 %d 0 %d",
          s_op->op,
          ((s_op->req->u.setattr.attr.mask & PVFS_ATTR_COMMON_TYPE) ?
@@ -148,8 +127,6 @@ gossip_err("setattr: type:%d:\n", s_op->req->u.setattr.attr.objtype);
             s_op->attr.owner :
             65534));
 
-gossip_err("%s: mask:%x:\n", __func__, s_op->req->u.setattr.attr.mask);
-
     } else if (s_op->op == PVFS_SERV_REMOVE) {
 
        sprintf(buffer, "%d %d %lu 0 0 %d 0 %d",
@@ -159,23 +136,13 @@ gossip_err("%s: mask:%x:\n", __func__, s_op->req->u.setattr.attr.mask);
          s_op->target_handle,
          s_op->target_fs_id,
          s_op->attr.owner);
-gossip_err("%s: s_op->req->u.remove.credential.userid:%d:\n", __func__,
-s_op->req->u.remove.credential.userid);
-gossip_err("%s: s_op->attr.owner:%d:\n", __func__,
-s_op->attr.owner);
 
-} else if (s_op->op == PVFS_SERV_IO) {
-syslog(LOG_ERR, "+%s io: Handle:%lu: fs_id:%d\n",
-__func__,
-s_op->target_handle,
-s_op->target_fs_id);
-rc = 0;
-} else {
-rc = 0;
-}
+    }
 
     if (strlen(buffer))
       rc = write(pipefd[1], buffer, strlen(buffer) + 1);
+    else
+      rc = 0;
 
     if (rc < 0)
       gossip_err("+%s write rc:%d: errno:%d:\n", __func__, rc, errno);

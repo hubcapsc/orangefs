@@ -16,6 +16,7 @@
 #include "pint-util.h"
 #include "pint-security.h"
 #include "dist-dir-utils.h"
+#include "pvfs2-notify.h"
 
 enum
 {
@@ -439,7 +440,7 @@ static PINT_sm_action rmdirent_setup_resp(
         struct PINT_smcb *smcb, job_status_s *js_p)
 {
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
-    char buffer[4096];
+    char buffer[BUFFER_MAX];
     int rc;
 
     /* Set the handle if it was removed */
@@ -457,8 +458,6 @@ static PINT_sm_action rmdirent_setup_resp(
 		     llu(s_op->resp.u.rmdirent.entry_handle));
 
         /* signal the change detector */
-        memset(buffer, 0, 4096);
-
         sprintf(buffer, "%d 0 %lu 0 %s %d 0 %d",
           s_op->op,
           s_op->resp.u.rmdirent.entry_handle,
