@@ -1073,6 +1073,19 @@ op, type, handle, phandle, name, fsid, target, uid);
 	    chdir("..");
 	    break;
 
+/*
+ * [hubcap@vm3 ~]$ mv /pvfsmnt/hdir2/hfile /pvfsmnt/hdir
+ * {"op": "rename", "name": "hfile", ... , "uid": "1000"}
+ * [hubcap@vm3 ~]$ mv /pvfsmnt/hdir/hfile /pvfsmnt/hdir2
+ * {"op": "rename", "name": "hfile", ... , "uid": "1000"}
+ * [hubcap@vm3 ~]$ mv /pvfsmnt/hdir2/hfile /pvfsmnt
+ * {"op": "rename", "name": "hfile",  ... , "uid": "1000"}
+ * [hubcap@vm3 ~]$ mv /pvfsmnt/hfile /pvfsmnt/hdir
+ * {"op": "rename", "name": "hfile", ... , "uid": "0"}
+ *
+ * I guess since /pvfsmnt is root owned 777 with the sticky bit,
+ * ida know...
+ */
 	  case PVFS_SERV_RMDIRENT:
 	    chdir("d.crdirent");
 	    if (!stat(handle, &statbuf)) {
@@ -1080,9 +1093,10 @@ op, type, handle, phandle, name, fsid, target, uid);
 		read(fd, buffer, BUFFER_MAX);
 		sscanf(buffer, "%s %s", name, phandle);
 		close(fd);
-		gossip_err("rename handle %s to %s in parent %s\n",
-			handle, name, phandle);
-                sprintf(to_irods, RENAME_F, name, types[type], handle, phandle);
+gossip_err("rename handle:%s: to:%s: parent:%s: uid:%s:\n",
+handle, name, phandle, uid);
+                sprintf(to_irods, RENAME_F,
+                  name, types[type], handle, phandle, uid);
                 write(nfd, to_irods, strlen(to_irods));
 		unlink(handle);
 		chdir("..");
@@ -1128,9 +1142,9 @@ op, type, handle, phandle, name, fsid, target, uid);
 		  read(fd, buffer, BUFFER_MAX);
 		  sscanf(buffer, "%s", name);
 		  close(fd);
-		  gossip_err("rename %s %s %s\n", 
-                    name, handle2, handle);
-                  sprintf(to_irods, RENAME_F2, name, handle2, handle);
+gossip_err("rename %s %s %s %s\n", 
+name, handle2, handle, uid);
+                  sprintf(to_irods, RENAME_F2, name, handle2, handle, uid);
                   write(nfd, to_irods, strlen(to_irods));
                   unlink(handle2);
                   chdir("..");

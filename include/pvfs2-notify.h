@@ -22,7 +22,7 @@
 #define SETATTR_F "{\"op\": \"setattr\", \"obj_type\": \"%s\", \"handle\": \"%s\"}\n"
 #define C_OBJ_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"uid\": \"%s\"}\n"
 #define C_SYMLINK_F "{\"op\": \"create\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"target\": \"%s\", \"uid\": \"%s\"}\n"
-#define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\"}\n"
-#define RENAME_F2 "{\"op\": \"rename\", \"name\": \"%s\", \"handle\": \"%s\", \"old_handle\": \"%s\"}\n"
+#define RENAME_F "{\"op\": \"rename\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"parent_handle\": \"%s\", \"uid\": \"%s\"}\n"
+#define RENAME_F2 "{\"op\": \"rename\", \"name\": \"%s\", \"handle\": \"%s\", \"old_handle\": \"%s\", \"uid\": \"%s\"}\n"
 #define D_OBJ_F "{\"op\": \"delete\", \"name\": \"%s\", \"obj_type\": \"%s\", \"handle\": \"%s\", \"uid\": \"%s\"}\n"
 
