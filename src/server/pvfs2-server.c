@@ -870,68 +870,103 @@ static int server_setup_process_environment(int background)
  *    
  */
 int server_change(int fd) {
-	struct pollfd pfds;
-	char buffer[4096];  /* needs to be dynamically sized? */
-	int i = 0;
-        int rc;
-        char c[1];
-	char *list_dir;
-        struct server_configuration_s *user_opts =
-          PINT_server_config_mgr_get_config();
-        int nfd;
+    struct pollfd pfds;
+    char buffer[PATH_MAX];  /* needs to be dynamically sized? */
+    int i = 0;
+    int j;
+    int rc;
+    char *list_dir;
+    struct server_configuration_s *user_opts =
+    PINT_server_config_mgr_get_config();
+    int nfd;
+    int index = 0;
+    int len;
 	
-        list_dir = malloc(strlen(user_opts->data_path) + strlen(LIST_DIR) + 1);
-        strcpy(list_dir, user_opts->data_path);
-        strcat(list_dir, LIST_DIR);
+    list_dir = malloc(strlen(user_opts->data_path) + strlen(LIST_DIR) + 1);
+    strcpy(list_dir, user_opts->data_path);
+    strcat(list_dir, LIST_DIR);
 
-	mkdir(list_dir, 0700);
-	if (chdir(list_dir)) {
-          gossip_err("%s: cd :%s: errno:%d:\n", __func__, list_dir, errno); 
-          exit(0);			
+    mkdir(list_dir, 0700);
+    if (chdir(list_dir)) {
+        gossip_err("%s: cd :%s: errno:%d:\n", __func__, list_dir, errno); 
+        exit(0);			
+    }
+
+    mkdir("d.create", 0700);
+    mkdir("d.mkdir", 0700);
+    mkdir("d.crdirent", 0700);
+    mkdir("d.rmdirent", 0700);
+    mkdir("d.setattr", 0700);
+    mkdir("d.chdirent", 0700);
+
+    if ((nfd = open("notify", O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU)) == -1) {
+        gossip_err("%s: can't open notify file, errno:%d:\n", __func__, errno);
+        exit(0);
+    }
+
+    pfds.fd = fd;
+    pfds.events = POLLIN;
+
+    memset(buffer, 90, PATH_MAX);
+    buffer[PATH_MAX - 1] = '\0';
+gossip_err("strlen buffer:%lu:\n", strlen(buffer));
+
+    while (1) {
+
+poll:   if (poll(&pfds, 1, -1) == -1) {
+            gossip_err("+poll failed, errno:%d:\n", errno);
+            exit(0);			
         }
 
-	mkdir("d.create", 0700);
-	mkdir("d.mkdir", 0700);
-	mkdir("d.crdirent", 0700);
-	mkdir("d.rmdirent", 0700);
-	mkdir("d.setattr", 0700);
-	mkdir("d.chdirent", 0700);
+        if (pfds.revents != 0) {
 
-        if ((nfd = open("notify", O_CREAT|O_WRONLY|O_TRUNC, S_IRWXU)) == -1) {
-          gossip_err("%s: can't open notify file, errno:%d:\n",
-            __func__, errno);
-          exit(0);
+            if (pfds.revents & POLLIN) {
+read:           rc = read(pfds.fd, buffer + index, PATH_MAX - index);
+
+                if (rc == EWOULDBLOCK ) {
+                    goto poll;
+                }
+
+                /*
+                 * We read some bytes. Maybe part of a logical record. Maybe
+                 * a whole logical record. Maybe more than one logical record.
+                 * Maybe several records and a fragment. Any combination.
+                 * We need to send each record to the_rest. If there's a
+                 * remnant, we'll move it to the front of the buffer and
+                 * adjust the index so that when we go back to the pipe
+                 * for more we'll be able to flush out the fragment into
+                 * a whole record and keep going.
+		 */
+gossip_err("rc:%d:  errno:%d:  index:%d: buffer:%s:\n",
+rc, errno, index, buffer);
+
+                 while (((len = strlen(buffer + index)) < PATH_MAX - index) &&
+                         (index < rc)) {
+                     the_rest(buffer + index, nfd);
+                     index = index + len + 1;
+gossip_err("len:%d: index:%d: buffer:%lu:\n",
+len, index, strlen(buffer + index));
+                 }
+
+                 if ((rc - index) > 0) {
+                     j = 0;
+                     for (i = index; i <= (rc - 1); i++) {
+                         buffer[j++] = buffer[i];
+                     }
+                 }
+
+                 index = rc - index;
+                 memset(buffer + index, 1, PATH_MAX - index);
+                 buffer[PATH_MAX - 1] = '\0';
+
+                 goto read;
+            } 
+
+        } else {
+            gossip_err("+unexpected poll return code.\n");
+            exit(0);
         }
-
-	pfds.fd = fd;
-	pfds.events = POLLIN;
-
-	while (1) {
-
-poll:          if (poll(&pfds, 1, -1) == -1) {
-			gossip_err("+poll failed, errno:%d:\n", errno);
-			exit(0);			
-		}
-
-		if (pfds.revents != 0) {
-			if (pfds.revents & POLLIN) {
-read:			rc = read(pfds.fd, c, 1);
-				if (rc == 1) {
-					buffer[i++] = c[0];
-					if ( c[0] == '\0') {
-						the_rest(buffer, nfd);
-						i = 0;
-					}
-					goto read;
-				} 
-				if (rc == EWOULDBLOCK )
-					goto poll;
-			} else {
-				gossip_err("+unexpected poll return code.\n");
-				exit(0);
-			}
-		}
-	}
+    }
 }
 
 /*
@@ -1169,6 +1204,7 @@ name, handle2, handle, uid);
 
 	  default:
 	    gossip_err("%s: op :%d:, hit default.\n", __func__, op);
+  exit(0);
 	}
 }
 
