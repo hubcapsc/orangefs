@@ -468,6 +468,9 @@ void decode_PINT_hint(char **pptr, PINT_hint **hint)
     }
 
     *hint = new_hint;
+syslog(LOG_ERR, "%s:!!!HANDLE handle!!!:%lu:\n",
+__func__, PINT_HINT_GET_HANDLE(new_hint));
+
 }
 
 int PVFS_hint_copy(PVFS_hint old_hint, PVFS_hint *new_hint)
