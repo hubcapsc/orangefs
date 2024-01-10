@@ -243,6 +243,7 @@ PVFS_error PVFS_isys_create(
                   PVFS_HINT_HANDLE_NAME,
                   sizeof(PVFS_handle),
                   &parent_ref.handle);
+syslog(LOG_ERR, "%s: !!!Handle!!!:%lu:\n", __func__, parent_ref.handle);
     sm_p->parent_ref = parent_ref;
 
     if(attr.mask & PVFS_ATTR_SYS_DFILE_COUNT)
