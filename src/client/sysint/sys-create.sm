@@ -243,7 +243,6 @@ PVFS_error PVFS_isys_create(
                   PVFS_HINT_HANDLE_NAME,
                   sizeof(PVFS_handle),
                   &parent_ref.handle);
-syslog(LOG_ERR, "%s: !!!Handle!!!:%lu:\n", __func__, parent_ref.handle);
     sm_p->parent_ref = parent_ref;
 
     if(attr.mask & PVFS_ATTR_SYS_DFILE_COUNT)
@@ -471,6 +470,8 @@ static PINT_sm_action create_create_setup_msgpair(
     PINT_sm_msgpair_state *msg_p = NULL;
     int server_type;
 
+char notify_buffer[NAME_MAX * 2];
+
     gossip_debug(GOSSIP_CLIENT_DEBUG, "create state: "
                  "dspace_create_setup_msgpair\n");
 
@@ -529,6 +530,12 @@ static PINT_sm_action create_create_setup_msgpair(
     msg_p->handle = meta_handle_extent_array.extent_array[0].first;
     msg_p->retry_flag = PVFS_MSGPAIR_RETRY;
     msg_p->comp_fn = create_comp_fn;
+
+memcpy(notify_buffer, "1 8 2", 6);
+PVFS_hint_add(&sm_p->hints,
+              PVFS_HINT_NOTIFY_NAME,
+              strlen(notify_buffer) + 1,
+              notify_buffer);
 
     PINT_sm_push_frame(smcb, 0, &sm_p->msgarray_op);
     return SM_ACTION_COMPLETE;

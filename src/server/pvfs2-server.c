@@ -2868,8 +2868,6 @@ int server_state_machine_start(
                          PINT_HINT_GET_HANDLE(s_op->req->hints),
                          s_op->req->op);
 
-syslog(LOG_ERR, "%s:!!!HANDLE!!!:%lu:\n", __func__, PINT_HINT_GET_HANDLE(s_op->req->hints));
-
         s_op->resp.op = s_op->req->op;
 
         /* start request timer 
