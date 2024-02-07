@@ -469,6 +469,7 @@ static PINT_sm_action create_create_setup_msgpair(
     PVFS_handle_extent_array meta_handle_extent_array;
     PINT_sm_msgpair_state *msg_p = NULL;
     int server_type;
+    char notify_buffer[NAME_MAX * 2]; /* how big should this be? */
 
     gossip_debug(GOSSIP_CLIENT_DEBUG, "create state: "
                  "dspace_create_setup_msgpair\n");
@@ -528,6 +529,12 @@ static PINT_sm_action create_create_setup_msgpair(
     msg_p->handle = meta_handle_extent_array.extent_array[0].first;
     msg_p->retry_flag = PVFS_MSGPAIR_RETRY;
     msg_p->comp_fn = create_comp_fn;
+
+    memcpy(notify_buffer, "1 8 2", strlen("1 8 2") + 1);
+    PVFS_hint_add(&sm_p->hints,
+                  PVFS_HINT_NOTIFY_NAME,
+                  strlen(notify_buffer) + 1,
+                  notify_buffer);
 
     PINT_sm_push_frame(smcb, 0, &sm_p->msgarray_op);
     return SM_ACTION_COMPLETE;

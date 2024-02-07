@@ -81,6 +81,10 @@ static PINT_sm_action final_response_release(
          s_op->u.crdirent.parent_handle, s_op->u.crdirent.name,
          s_op->target_fs_id);
 
+       syslog(LOG_ERR, "%s: ########## :%s:\n",
+         __func__, (PINT_HINT_GET_NOTIFIED(s_op->req->hints)));
+    
+
     } else if (s_op->op == PVFS_SERV_CHDIRENT) {
 
        /* don't know parent handle. */
