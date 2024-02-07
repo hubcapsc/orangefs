@@ -1204,7 +1204,6 @@ name, handle2, handle, uid);
 
 	  default:
 	    gossip_err("%s: op :%d:, hit default.\n", __func__, op);
-  exit(0);
 	}
 }
 
