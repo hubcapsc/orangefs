@@ -530,7 +530,7 @@ static PINT_sm_action create_create_setup_msgpair(
     msg_p->retry_flag = PVFS_MSGPAIR_RETRY;
     msg_p->comp_fn = create_comp_fn;
 
-    memcpy(notify_buffer, "1 8 2", strlen("1 8 2") + 1);
+sprintf(notify_buffer, "create:%d", sm_p->u.create.attr.owner);
     PVFS_hint_add(&sm_p->hints,
                   PVFS_HINT_NOTIFY_NAME,
                   strlen(notify_buffer) + 1,
