@@ -68,6 +68,11 @@ static PINT_sm_action final_response_release(
     int ret = -1;
     job_id_t tmp_id;
 
+    syslog(LOG_ERR, "%s: :%s:\n",
+      __func__,
+      (PINT_HINT_GET_NOTIFIED(s_op->req->hints)));
+
+
     gossip_debug(GOSSIP_SERVER_DEBUG, 
                  "(s_op %p) %s (FR sm) state: release: (error_code = %d)\n",
                  s_op, PINT_map_server_op_to_string(s_op->req->op),

@@ -27,6 +27,9 @@
 #define PVFS_HINT_LOCAL_UID_NAME     "pvfs.hint.local_uid"
 /* owner gid for file creation */
 #define PVFS_HINT_OWNER_GID_NAME     "pvfs.hint.owner_gid"
+/* change notification */
+#define PVFS_HINT_NOTIFY_NAME        "pvfs.hint.notify"
+
 
 typedef struct PVFS_hint_s *PVFS_hint;
 
