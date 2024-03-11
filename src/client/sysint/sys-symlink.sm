@@ -572,6 +572,7 @@ static PINT_sm_action symlink_setattr_setup_msgpair(
     struct PINT_client_sm *sm_p = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
     int ret = -PVFS_EINVAL;
     PINT_sm_msgpair_state *msg_p = NULL;
+    char notify_buffer[NAME_MAX * 2]; /* how big should this be? */
 
     js_p->error_code = 0;
 
@@ -606,6 +607,16 @@ static PINT_sm_action symlink_setattr_setup_msgpair(
     msg_p->handle = sm_p->u.sym.symlink_handle;
     msg_p->retry_flag = PVFS_MSGPAIR_NO_RETRY;
     msg_p->comp_fn = symlink_setattr_comp_fn;
+
+    sprintf(notify_buffer, "%d %s %d %s",
+      PVFS_SYS_SYMLINK,
+      sm_p->u.sym.link_name,
+      sm_p->u.sym.sys_attr.owner,
+      sm_p->u.sym.link_target);
+    PVFS_hint_add(&sm_p->hints,
+      PVFS_HINT_NOTIFY_NAME,
+      strlen(notify_buffer) + 1,
+      notify_buffer);
 
     ret = PINT_cached_config_map_to_server(
         &msg_p->svr_addr, msg_p->handle, msg_p->fs_id);

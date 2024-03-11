@@ -469,7 +469,7 @@ static PINT_sm_action create_create_setup_msgpair(
     PVFS_handle_extent_array meta_handle_extent_array;
     PINT_sm_msgpair_state *msg_p = NULL;
     int server_type;
-    char notify_buffer[NAME_MAX * 2]; /* how bug should this be? */
+    char notify_buffer[NAME_MAX * 2]; /* how big should this be? */
 
     gossip_debug(GOSSIP_CLIENT_DEBUG, "create state: "
                  "dspace_create_setup_msgpair\n");
@@ -530,11 +530,14 @@ static PINT_sm_action create_create_setup_msgpair(
     msg_p->retry_flag = PVFS_MSGPAIR_RETRY;
     msg_p->comp_fn = create_comp_fn;
 
-    sprintf(notify_buffer, "create:%d", sm_p->u.create.attr.owner);
+    sprintf(notify_buffer, "%d %s %d ldummy",
+      PVFS_SYS_CREATE,
+      sm_p->u.create.object_name,
+      sm_p->u.create.attr.owner);
     PVFS_hint_add(&sm_p->hints,
-                  PVFS_HINT_NOTIFY_NAME,
-                  strlen(notify_buffer) + 1,
-                  notify_buffer);
+      PVFS_HINT_NOTIFY_NAME,
+      strlen(notify_buffer) + 1,
+      notify_buffer);
 
     PINT_sm_push_frame(smcb, 0, &sm_p->msgarray_op);
     return SM_ACTION_COMPLETE;

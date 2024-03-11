@@ -100,7 +100,7 @@ int PVFS_hint_replace_internal(
 
 #define PINT_HINT_GET_NOTIFIED(hints) \
     PINT_hint_get_value_by_type(hints, PINT_HINT_UNKNOWN, NULL) ? \
-    (char *)PINT_hint_get_value_by_type(hints, PINT_HINT_UNKNOWN, NULL) : 0
+    (char *)PINT_hint_get_value_by_type(hints, PINT_HINT_UNKNOWN, NULL) : '\0'
 
 #define PINT_HINT_GET_LOCAL_UID(hints) \
     PINT_hint_get_value_by_type(hints, PINT_HINT_LOCAL_UID, NULL) ? \

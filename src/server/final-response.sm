@@ -67,11 +67,45 @@ static PINT_sm_action final_response_release(
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
     int ret = -1;
     job_id_t tmp_id;
+    int op;
+    PVFS_uid uid;
+    char link[NAME_MAX];
+    char other_link[NAME_MAX];
+    char buffer[NAME_MAX];
 
-    syslog(LOG_ERR, "%s: :%s:\n",
-      __func__,
-      (PINT_HINT_GET_NOTIFIED(s_op->req->hints)));
+    if (s_op->op == PVFS_SERV_CRDIRENT) {
+      /*
+         Hints for the server are inserted by the client when the client
+         does something - like create a file. This causes the OPs in
+         hints to be client-flavored.
+         client - src/client/sysint/client-state-machine.h - PVFS_SYS_CREATE
+         server - src/proto/pvfs2-req-proto.h - PVFS_SERV_CREATE
+         op:2=create file:3=dir:4=symlink:
+         op:2 -> name, "file", handle, phandle, null, uid
+         op:3 -> name, "dir", handle, phandle, null, uid
+         op:4 -> name, "link", handle, phandle, target, uid
+      */
 
+      sprintf(buffer, "%s", PINT_HINT_GET_NOTIFIED(s_op->req->hints));
+      syslog(LOG_ERR, "------------- strlen:%lu: ----\n", strlen(buffer));
+      if (strlen(buffer)) {
+        sscanf(buffer, "%d %s %d %s", &op, other_link, &uid, link);
+        if ((op == 2) || (op == 3)) {
+          syslog(LOG_ERR,
+            "op:%d: name:%s: handle:%lu: phandle:%lu: uid:%d:\n",
+            op, s_op->u.crdirent.name, s_op->u.crdirent.new_handle,
+            s_op->u.crdirent.parent_handle, uid);
+        } else if (op == 4) {
+          syslog(LOG_ERR,
+            "op:%d: name:%s: handle:%lu: phandle:%lu: target:%s: uid:%d:\n",
+            op, s_op->u.crdirent.name, s_op->u.crdirent.new_handle,
+            s_op->u.crdirent.parent_handle, link, uid);
+        } else {
+          syslog(LOG_ERR, "%s: CRDIRENT unexpected op:%d:\n",
+                 __func__, op);
+        }
+      }
+    }
 
     gossip_debug(GOSSIP_SERVER_DEBUG, 
                  "(s_op %p) %s (FR sm) state: release: (error_code = %d)\n",
