@@ -530,7 +530,7 @@ static PINT_sm_action create_create_setup_msgpair(
     msg_p->retry_flag = PVFS_MSGPAIR_RETRY;
     msg_p->comp_fn = create_comp_fn;
 
-    sprintf(notify_buffer, "%d %s %d ldummy",
+    sprintf(notify_buffer, "%d %s %d ldummy ",
       PVFS_SYS_CREATE,
       sm_p->u.create.object_name,
       sm_p->u.create.attr.owner);

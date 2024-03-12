@@ -13,6 +13,10 @@
 #include "pvfs2-attr.h"
 #include "pvfs2-internal.h"
 #include "pint-perf-counter.h"
+/* hubcap */
+#include "trove.h"
+#include "dbpf-db.h"
+/* hubcap */
 
 /* final-response state machine:
  * This is used as a nested state machine to perform two primary tasks:
@@ -67,13 +71,33 @@ static PINT_sm_action final_response_release(
     struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
     int ret = -1;
     job_id_t tmp_id;
+
+/* hubcap */
     int op;
     PVFS_uid uid;
     char link[NAME_MAX];
     char other_link[NAME_MAX];
     char buffer[NAME_MAX];
+    dbpf_db *notify_db = NULL;
+    struct dbpf_data key, data;
+/* hubcap */
 
-    if (s_op->op == PVFS_SERV_CRDIRENT) {
+    gossip_debug(GOSSIP_SERVER_DEBUG,
+                 "(s_op %p) %s (FR sm) state: release: (error_code = %d)\n",
+                 s_op, PINT_map_server_op_to_string(s_op->req->op),
+                 js_p->error_code);
+
+    /* this seems a little odd, but since this is the first state of the
+     * nested machine, now is the time to grab the error code if we
+     * are going to use it
+     */
+    /* NOTE: we filter out any subsystem mask and make sure that this
+     * shows up as a generic pvfs error on the client side
+     */
+    s_op->resp.status = -PVFS_ERROR_CODE(-js_p->error_code);
+
+/* hubcap */
+    if ((s_op->op == PVFS_SERV_CRDIRENT) && (!s_op->resp.status)) {
       /*
          Hints for the server are inserted by the client when the client
          does something - like create a file. This causes the OPs in
@@ -87,10 +111,24 @@ static PINT_sm_action final_response_release(
       */
 
       sprintf(buffer, "%s", PINT_HINT_GET_NOTIFIED(s_op->req->hints));
-      syslog(LOG_ERR, "------------- strlen:%lu: ----\n", strlen(buffer));
+      syslog(LOG_ERR, "%s: strlen(buffer):%lu: status:%d:\n",
+        __func__, strlen(buffer), s_op->resp.status );
       if (strlen(buffer)) {
+
+        ret = dbpf_db_open("/opt/orangefs/storage/notify", 0, &notify_db, 0, 0);
+        syslog(LOG_ERR, "%s: dbpf_db_open rc:%d:\n", __func__, ret);
+
         sscanf(buffer, "%d %s %d %s", &op, other_link, &uid, link);
         if ((op == 2) || (op == 3)) {
+
+          key.data = &op;
+          key.len = sizeof(int);
+          data.data = buffer;
+          data.len = strlen(buffer + 1);
+          ret = dbpf_db_put(notify_db, &key, &data);
+          syslog(LOG_ERR, "%s: dbpf_db_put rc:%d: len:%lu:\n",
+            __func__, ret, data.len);
+
           syslog(LOG_ERR,
             "op:%d: name:%s: handle:%lu: phandle:%lu: uid:%d:\n",
             op, s_op->u.crdirent.name, s_op->u.crdirent.new_handle,
@@ -106,20 +144,7 @@ static PINT_sm_action final_response_release(
         }
       }
     }
-
-    gossip_debug(GOSSIP_SERVER_DEBUG, 
-                 "(s_op %p) %s (FR sm) state: release: (error_code = %d)\n",
-                 s_op, PINT_map_server_op_to_string(s_op->req->op),
-                 js_p->error_code);
-
-    /* this seems a little odd, but since this is the first state of the
-     * nested machine, now is the time to grab the error code if we
-     * are going to use it
-     */
-    /* NOTE: we filter out any subsystem mask and make sure that this
-     * shows up as a generic pvfs error on the client side
-     */
-    s_op->resp.status = -PVFS_ERROR_CODE(-js_p->error_code);
+/* hubcap */
 
     /* catch cases in which the operation has not been scheduled */
     if (!s_op->scheduled_id)
