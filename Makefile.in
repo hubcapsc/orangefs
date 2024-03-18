@@ -187,6 +187,7 @@ INCLUDES := \
     src/common/lmdb \
     src/client/usrint \
     src/io/trove \
+    src/io/trove/trove-dbpf \
     src/io/bmi \
     src/io/description \
     src/io/buffer \
