@@ -73,11 +73,11 @@ static PINT_sm_action final_response_release(
     job_id_t tmp_id;
 
 /* hubcap */
-    int op;
-    PVFS_uid uid;
-    char link[NAME_MAX];
-    char other_link[NAME_MAX];
-    char buffer[NAME_MAX];
+    char buffer[NAME_MAX];     /* how big should this be? */
+    struct timeval tv;
+    char keybuf[64];
+    char hbuf[32];
+    char pbuf[32];
     dbpf_db *notify_db = NULL;
     struct dbpf_data key, data;
 /* hubcap */
@@ -96,6 +96,13 @@ static PINT_sm_action final_response_release(
      */
     s_op->resp.status = -PVFS_ERROR_CODE(-js_p->error_code);
 
+    /* catch cases in which the operation has not been scheduled */
+    if (!s_op->scheduled_id)
+    {
+        js_p->error_code = 0;
+        return SM_ACTION_COMPLETE;
+    }
+
 /* hubcap */
     if ((s_op->op == PVFS_SERV_CRDIRENT) && (!s_op->resp.status)) {
       /*
@@ -111,47 +118,46 @@ static PINT_sm_action final_response_release(
       */
 
       sprintf(buffer, "%s", PINT_HINT_GET_NOTIFIED(s_op->req->hints));
-      syslog(LOG_ERR, "%s: strlen(buffer):%lu: status:%d:\n",
-        __func__, strlen(buffer), s_op->resp.status );
       if (strlen(buffer)) {
+        syslog(LOG_ERR, "%s: strlen(buffer):%lu: status:%d:\n",
+          __func__, strlen(buffer), s_op->resp.status );
 
+        /*
+         * A string made out of sec and usec always grows lexicographically.
+         * The sum of the next sec and usec isn't always larger
+         * than the sum of the last sec and usec.
+         */
+	if (gettimeofday(&tv,NULL)) {
+          gossip_lerr("%s: gettimeofday rc:%d:\n", __func__, errno);
+          tv.tv_sec = 0xdead;
+          tv.tv_usec = 0xbeef;
+        }
+	sprintf(keybuf, "%lu%lu", tv.tv_sec, tv.tv_usec);
+
+        /*
+         * The value for a notification event is the stuff collected
+         * from the hint plus the stuff we got from the server.
+         */ 
+        sprintf(hbuf, " %lu", s_op->u.crdirent.new_handle);
+        sprintf(pbuf, " %lu", s_op->u.crdirent.parent_handle);
+        strcat(buffer, hbuf);
+        strcat(buffer, pbuf);
+        
         ret = dbpf_db_open("/opt/orangefs/storage/notify", 0, &notify_db, 0, 0);
         syslog(LOG_ERR, "%s: dbpf_db_open rc:%d:\n", __func__, ret);
 
-        sscanf(buffer, "%d %s %d %s", &op, other_link, &uid, link);
-        if ((op == 2) || (op == 3)) {
+        key.data = keybuf;
+        key.len = strlen(keybuf + 1);
+        data.data = buffer;
+        data.len = strlen(buffer + 1);
+        ret = dbpf_db_put(notify_db, &key, &data);
+        syslog(LOG_ERR, "%s: dbpf_db_put rc:%d: len:%lu:\n",
+          __func__, ret, data.len);
 
-          key.data = &op;
-          key.len = sizeof(int);
-          data.data = buffer;
-          data.len = strlen(buffer + 1);
-          ret = dbpf_db_put(notify_db, &key, &data);
-          syslog(LOG_ERR, "%s: dbpf_db_put rc:%d: len:%lu:\n",
-            __func__, ret, data.len);
-
-          syslog(LOG_ERR,
-            "op:%d: name:%s: handle:%lu: phandle:%lu: uid:%d:\n",
-            op, s_op->u.crdirent.name, s_op->u.crdirent.new_handle,
-            s_op->u.crdirent.parent_handle, uid);
-        } else if (op == 4) {
-          syslog(LOG_ERR,
-            "op:%d: name:%s: handle:%lu: phandle:%lu: target:%s: uid:%d:\n",
-            op, s_op->u.crdirent.name, s_op->u.crdirent.new_handle,
-            s_op->u.crdirent.parent_handle, link, uid);
-        } else {
-          syslog(LOG_ERR, "%s: CRDIRENT unexpected op:%d:\n",
-                 __func__, op);
-        }
+        syslog(LOG_ERR, "keybuf:%s:buffer:%s:\n", keybuf, buffer);
       }
     }
 /* hubcap */
-
-    /* catch cases in which the operation has not been scheduled */
-    if (!s_op->scheduled_id)
-    {
-        js_p->error_code = 0;
-        return SM_ACTION_COMPLETE;
-    }
 
     ret = job_req_sched_release(
         s_op->scheduled_id, smcb, 0, js_p, &tmp_id, server_job_context);

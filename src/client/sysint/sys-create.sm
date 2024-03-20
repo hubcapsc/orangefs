@@ -530,7 +530,7 @@ static PINT_sm_action create_create_setup_msgpair(
     msg_p->retry_flag = PVFS_MSGPAIR_RETRY;
     msg_p->comp_fn = create_comp_fn;
 
-    sprintf(notify_buffer, "%d %s %d ldummy ",
+    sprintf(notify_buffer, "%d %s %d",
       PVFS_SYS_CREATE,
       sm_p->u.create.object_name,
       sm_p->u.create.attr.owner);
@@ -703,6 +703,9 @@ static PINT_sm_action create_cleanup(
                         js_p->error_code);
 
     memset(&metafile_ref, 0, sizeof(metafile_ref));
+
+    /* free notify hint */
+    PVFS_hint_free(&sm_p->hints);
 
     if (sm_p->error_code == 0)
     {

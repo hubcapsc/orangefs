@@ -365,7 +365,7 @@ static PINT_sm_action mkdir_msg_setup_msgpair(
     msg_p->retry_flag = PVFS_MSGPAIR_NO_RETRY;
     msg_p->comp_fn = mkdir_msg_comp_fn;
 
-    sprintf(notify_buffer, "%d %s %d ldummy",
+    sprintf(notify_buffer, "%d %s %d",
       PVFS_SYS_MKDIR,
       sm_p->u.mkdir.object_name,
       sm_p->u.mkdir.sys_attr.owner);
@@ -638,6 +638,9 @@ static PINT_sm_action mkdir_cleanup(
 {
     struct PINT_client_sm *sm_p = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
     gossip_debug(GOSSIP_CLIENT_DEBUG, "mkdir state: cleanup\n");
+
+    /* free up notify hint. */
+    PVFS_hint_free(&sm_p->hints);
 
     if(sm_p->u.mkdir.val_array)
     {
