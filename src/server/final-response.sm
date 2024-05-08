@@ -16,6 +16,7 @@
 /* hubcap */
 #include "trove.h"
 #include "dbpf-db.h"
+#define NOTIFY_PATH "/opt/orangefs/storage/notify"
 /* hubcap */
 
 /* final-response state machine:
@@ -80,6 +81,7 @@ static PINT_sm_action final_response_release(
     char pbuf[32];
     dbpf_db *notify_db = NULL;
     struct dbpf_data key, data;
+    struct stat statbuf;
 /* hubcap */
 
     gossip_debug(GOSSIP_SERVER_DEBUG,
@@ -143,7 +145,14 @@ static PINT_sm_action final_response_release(
         strcat(buffer, hbuf);
         strcat(buffer, pbuf);
         
-        ret = dbpf_db_open("/opt/orangefs/storage/notify", 0, &notify_db, 0, 0);
+        if ((stat(NOTIFY_PATH, &statbuf)) &&
+            (errno == ENOENT)) {
+          if (mkdir(NOTIFY_PATH, 0755)) {
+            gossip_err("mkdir on notify failed, errno:%d:\n", errno);
+          }
+        }
+
+        ret = dbpf_db_open(NOTIFY_PATH, 0, &notify_db, 0, 0);
         syslog(LOG_ERR, "%s: dbpf_db_open rc:%d:\n", __func__, ret);
 
         key.data = keybuf;
