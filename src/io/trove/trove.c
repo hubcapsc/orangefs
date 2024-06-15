@@ -317,6 +317,7 @@ int trove_keyval_write(
 {
     TROVE_method_id method_id;
     method_id = global_trove_method_callback(coll_id);
+gossip_err("%s: t_handle:%lu: coll_id:%d:\n", __func__, handle, coll_id);
     /* Check arguments */
     if (key_p->buffer_sz < 2)
         return -TROVE_EINVAL;

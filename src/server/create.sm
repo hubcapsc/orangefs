@@ -180,6 +180,9 @@ static PINT_sm_action create_metafile(struct PINT_smcb *smcb, job_status_s *js_p
                                         PINT_SERVER_TYPE_META,
                                         &meta_handle_ext_array);
 
+gossip_err("%s: ext_count:%d: first:%lu: last:%lu:\n",
+__func__, meta_handle_ext_array.extent_count,
+ meta_handle_ext_array.extent_array[0].first, meta_handle_ext_array.extent_array[0].last);
     ret = job_trove_dspace_create(s_op->req->u.create.fs_id,
                                   &meta_handle_ext_array,
                                   PVFS_TYPE_METAFILE,
@@ -667,17 +670,21 @@ static PINT_sm_action write_keyvals(
 
     s_op->key_a[0].buffer = Trove_Common_Keys[METAFILE_HANDLES_KEY].key;
     s_op->key_a[0].buffer_sz = Trove_Common_Keys[METAFILE_HANDLES_KEY].size;
+gossip_err("%s - %s 1: buf:%s: size:%d:\n", __FILE__, __func__, (char *)s_op->key_a[0].buffer, s_op->key_a[0].buffer_sz);
 
     s_op->val_a[0].buffer = s_op->resp.u.create.metafile_attrs.u.meta.dfile_array;
     s_op->val_a[0].buffer_sz =
                     s_op->resp.u.create.metafile_attrs.u.meta.dfile_count *
                     sizeof(PVFS_handle);
+gossip_err("%s - %s 2: buf:%p: size:%d:\n", __FILE__, __func__, s_op->val_a[0].buffer, s_op->val_a[0].buffer_sz);
 
     s_op->key_a[1].buffer = Trove_Common_Keys[METAFILE_DIST_KEY].key;
     s_op->key_a[1].buffer_sz = Trove_Common_Keys[METAFILE_DIST_KEY].size;
+gossip_err("%s - %s 3: buf:%s: size:%d:\n", __FILE__, __func__, (char *)s_op->key_a[1].buffer, s_op->key_a[1].buffer_sz);
 
     s_op->val_a[1].buffer_sz = s_op->req->u.create.attr.u.meta.dist_size;
     s_op->val_a[1].buffer = malloc(s_op->val_a[1].buffer_sz);
+gossip_err("%s - %s 4: buf:%s: size:%d:\n", __FILE__, __func__, (char *)s_op->val_a[1].buffer, s_op->val_a[1].buffer_sz);
     if(!s_op->val_a[1].buffer)
     {
         js_p->error_code = -PVFS_ENOMEM;

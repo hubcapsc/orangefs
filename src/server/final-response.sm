@@ -50,6 +50,12 @@ nested machine pvfs2_final_response_sm
     state send_resp
     {
         run final_response_send_resp;
+        default => notify;
+    }
+
+    state notify
+    {
+        run final_response_notify;
         default => cleanup;
     }
 
@@ -219,6 +225,32 @@ static PINT_sm_action final_response_send_resp(
         s_op->req->hints);
 
     return ret;
+}
+
+/*
+ * make a notification if needed.
+ */
+static PINT_sm_action final_response_notify(
+        struct PINT_smcb *smcb, job_status_s *js_p)
+{
+    struct PINT_server_op *s_op = PINT_sm_frame(smcb, PINT_FRAME_CURRENT);
+    server_configuration_s *config = PINT_server_config_mgr_get_config();
+    char buffer[1024];
+
+    if (s_op->op == PVFS_SERV_CRDIRENT) {
+
+      gossip_err("%s - %s, CRDIRENT:%d:\n",
+         __func__, config->host_id, 42);
+
+      sprintf(buffer, "%s", PINT_HINT_GET_NOTIFIED(s_op->req->hints));
+      if (strlen(buffer)) {
+        gossip_err("%s: strlen(buffer):%lu: buffer:%s: status:%d:\n",
+          __func__, strlen(buffer), buffer, s_op->resp.status );
+      }
+
+    }
+
+    return SM_ACTION_COMPLETE;
 }
 
 

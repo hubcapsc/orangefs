@@ -1863,6 +1863,8 @@ int job_trove_keyval_write(PVFS_fs_id coll_id,
     struct job_desc *jd = NULL;
     void* user_ptr_internal GCC_UNUSED;
 
+gossip_err("%s: handle:%lu: coll_id:%d:\n", __func__, handle, coll_id);
+
     /* create the job desc first, even though we may not use it.  This
      * gives us somewhere to store the BMI id and user ptr
      */
@@ -1949,6 +1951,7 @@ int job_trove_keyval_write_list(PVFS_fs_id coll_id,
     int ret = -1;
     struct job_desc *jd = NULL;
     void *user_ptr_internal GCC_UNUSED;
+gossip_err("%s: handle:%lu: coll_id:%d:\n", __func__, handle, coll_id);
 
     /* create the job desc first, even though we may not use it.  This
      * gives us somewhere to store the BMI id and user ptr

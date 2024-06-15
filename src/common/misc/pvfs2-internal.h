@@ -152,6 +152,9 @@
 #define NUM_DFILES_REQ_KEYSTR         "nd\0"
 #define NUM_DFILES_REQ_KEYLEN         3
 
+#define NOTIFY_METADATA_KEYSTR        "nm\0"
+#define NOTIFY_METADATA_KEYLEN        3
+
 /* new keys for distributed directory, '/' makes sure no conflict with dirent names */
 #define DIST_DIR_ATTR_KEYSTR          "/dda\0"
 #define DIST_DIR_ATTR_KEYLEN          5
