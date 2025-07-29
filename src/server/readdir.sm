@@ -4,19 +4,22 @@
  * See COPYING in top-level directory.
  */
 
-#include <stdlib.h>
-#ifdef HAVE_MALLOC_H
-/* #include <malloc.h> */
-#endif
-#include <string.h>
-#include <assert.h>
+#include <stdint.h>             // for uint64_t
+#include <stdlib.h>             // for NULL, free, malloc
+#include "gossip.h"             // for gossip_debug
+#include "job.h"                // for job_status_s, job_trove_keyval_iterate
+#include "pint-perf-counter.h"  // for PINT_perf_count, PINT_perf_ops, PINT_...
+#include "pint-security.h"      // for PINT_CAP_READ
+#include "pvfs2-attr.h"         // for PVFS_object_attr
+#include "pvfs2-debug.h"        // for GOSSIP_READDIR_DEBUG
+#include "pvfs2-internal.h"     // for llu
+#include "pvfs2-mgmt.h"         // for PINT_server_perf_keys, PINT_server_pe...
+#include "pvfs2-req-proto.h"    // for PVFS_server_req, PVFS_server_req::(an...
+#include "pvfs2-server.h"       // for PINT_server_op, PINT_server_op::(anon...
+#include "pvfs2-types.h"        // for PVFS_EINVAL, PVFS_ds_keyval, PVFS_dirent
+#include "state-machine.h"      // for PINT_state_code, PINT_state_s, PINT_t...
+#include "trove.h"              // for TROVE_KEYVAL_DIRECTORY_ENTRY
 
-#include "server-config.h"
-#include "pvfs2-server.h"
-#include "pvfs2-attr.h"
-#include "pvfs2-internal.h"
-#include "trove.h"
-#include "pint-security.h"
 
 enum
 {

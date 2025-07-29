@@ -4,32 +4,35 @@
  * See COPYING in top-level directory.
  */
 
-#include <string.h>
-#include <stddef.h>
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#ifdef HAVE_MALLOC_H
-/* #include <malloc.h> */
-#endif
-
-#include "pvfs2-config.h"
-#include "server-config.h"
-#include "pvfs2-types.h"
-#include "pvfs2-server.h"
-#include "state-machine.h"
-#include "job.h"
-#include "pvfs2-attr.h"
-#include "gossip.h"
-#include "pvfs2-storage.h"
-#include "pvfs2-internal.h"
-#include "pint-util.h"
-#include "str-utils.h"
-#include "check.h"
-#include "security-util.h"
-#include "pint-uid-map.h"
-#include "pint-cached-config.h"
-#include "dist-dir-utils.h"
+#include <assert.h>                               // for assert
+#include <stddef.h>                               // for NULL
+#include <stdint.h>                               // for uint32_t
+#include <stdlib.h>                               // for free, malloc, calloc
+#include <string.h>                               // for memset, strlen, strcmp
+#include "check.h"                                // for PINT_get_capabilities
+#include "dist-dir-utils.h"                       // for PINT_encrypt_dirdata
+#include "gossip.h"                               // for gossip_debug, gossi...
+#include "job.h"                                  // for job_status_s, job_t...
+#include "msgpairarray.h"                         // for pvfs2_msgpairarray_sm
+#include "pint-cached-config.h"                   // for PINT_cached_config_...
+#include "pint-perf-counter.h"                    // for PINT_perf_timer_end
+#include "pint-security.h"                        // for PINT_CAP_EXEC
+#include "pint-uid-map.h"                         // for PINT_map_credential
+#include "pvfs2-attr.h"                           // for PVFS_object_attr
+#include "pvfs2-debug.h"                          // for GOSSIP_SERVER_DEBUG
+#include "pvfs2-internal.h"                       // for llu
+#include "pvfs2-mgmt.h"                           // for PINT_server_perf_tkeys
+#include "pvfs2-req-proto.h"                      // for PVFS_server_req
+#include "pvfs2-server.h"                         // for PINT_server_op, PIN...
+#include "pvfs2-storage.h"                        // for PVFS_ds_attributes
+#include "pvfs2-types.h"                          // for PVFS_handle, PVFS_E...
+#include "request-scheduler/request-scheduler.h"  // for PINT_server_sched_p...
+#include "security-util.h"                        // for PINT_print_op_mask
+#include "server-config-mgr.h"                    // for PINT_server_config_...
+#include "server-config.h"                        // for server_configuration_s
+#include "str-utils.h"                            // for PINT_string_count_s...
+#include "trove-types.h"                          // for TROVE_ENOENT
+#include "trove.h"                                // for TROVE_KEYVAL_DIRECT...
 
 static int lookup_get_dirent_comp_fn(
     void *v_p, struct PVFS_server_resp *resp_p, int i);

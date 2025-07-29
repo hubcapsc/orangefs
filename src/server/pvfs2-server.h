@@ -15,28 +15,27 @@
  * DEFINE ALL THE STRUCTURES WE NEED BEFORE WE INCLUDE IT.
  */
 
-#include <stdint.h>
-#include <sys/types.h>
-#ifndef WIN32
-#include <pwd.h>
-#include <grp.h>
-#endif
-#include <string.h>
-#include "pvfs2-debug.h"
-#include "pvfs2-storage.h"
-#include "pvfs2-internal.h"
-#include "job.h"
-#include "bmi.h"
-#include "trove.h"
-#include "gossip.h"
-#include "PINT-reqproto-encode.h"
-#include "msgpairarray.h"
-#include "pvfs2-req-proto.h"
-#include "pvfs2-mirror.h"
-#include "state-machine.h"
-#include "pint-event.h"
-#include "pint-perf-counter.h"
-#include "server-config-mgr.h"
+#include <stdint.h>                               // for uint32_t, int64_t
+#include <stdlib.h>                               // for free, malloc
+#include <time.h>                                 // for timespec
+#include "PINT-reqproto-encode.h"                 // for PINT_decoded_msg
+#include "bmi-types.h"                            // for bmi_msg_tag_t
+#include "bmi.h"                                  // for BMI_unexpected_info
+#include "job.h"                                  // for job_id_t, job_status_s
+#include "msgpairarray.h"                         // for PINT_sm_msgarray_op
+#include "pint-distribution.h"                    // for PINT_dist
+#include "pint-event.h"                           // for PINT_event_id
+#include "pvfs2-attr.h"                           // for PVFS_object_attr
+/*#include "pvfs2-internal.h"                       // for IO_MAX_REGIONS */
+#include "pvfs2-mirror.h"                         // for MIRROR_MODE
+#include "pvfs2-req-proto.h"                      // for PVFS_server_req (pt...
+#include "pvfs2-storage.h"                        // for PVFS_ds_attributes
+#include "pvfs2-types.h"                          // for PVFS_handle, PVFS_f...
+#include "quicklist.h"                            // for qlist_head
+#include "request-scheduler/request-scheduler.h"  // for PINT_server_req_acc...
+#include "server-config-mgr.h"                    // for PINT_server_config_...
+#include "src/io/flow/flow.h"                     // for flow_descriptor
+#include "state-machine.h"                        // for PINT_smcb, PINT_ser...
 
 extern job_context_id server_job_context;
 

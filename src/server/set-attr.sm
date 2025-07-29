@@ -4,21 +4,29 @@
  * See COPYING in top-level directory.
  */
 
-#include <string.h>
-#include <assert.h>
-
-#include "pvfs2-config.h"
-
-#include "server-config.h"
-#include "pvfs2-server.h"
-#include "pvfs2-attr.h"
-#include "pvfs2-util.h"
-#include "pvfs2-internal.h"
-#include "pint-util.h"
-#include "pint-security.h"
-#include "pint-uid-map.h"
-#include "pint-cached-config.h"
-#include "dist-dir-utils.h"
+#include <assert.h>                               // for assert
+#include <stdint.h>                               // for uint32_t, int32_t
+#include <stdio.h>                                // for snprintf
+#include <stdlib.h>                               // for free, malloc
+#include <string.h>                               // for NULL, memcpy, strcpy
+#include "dist-dir-utils.h"                       // for PINT_dist_dir_attr_...
+#include "gossip.h"                               // for gossip_debug, gossi...
+#include "job.h"                                  // for job_status_s, job_t...
+#include "pint-distribution.h"                    // for PINT_dist_encode
+#include "pint-perf-counter.h"                    // for PINT_perf_count
+#include "pint-security.h"                        // for PINT_CAP_SETATTR
+#include "pint-uid-map.h"                         // for PINT_map_credential
+#include "pint-util.h"                            // for PINT_free_object_attr
+#include "pvfs2-attr.h"                           // for PVFS_object_attr::(...
+#include "pvfs2-debug.h"                          // for GOSSIP_SETATTR_DEBUG
+#include "pvfs2-internal.h"                       // for llu
+#include "pvfs2-mgmt.h"                           // for PINT_server_perf_keys
+#include "pvfs2-req-proto.h"                      // for PVFS_server_req
+#include "pvfs2-server.h"                         // for PINT_server_op, Tro...
+#include "pvfs2-types.h"                          // for PVFS_ENOMEM, PVFS_h...
+#include "request-scheduler/request-scheduler.h"  // for PINT_server_sched_p...
+#include "state-machine.h"                        // for PINT_state_code
+#include "trove.h"                                // for TROVE_SYNC
 
 enum
 {
