@@ -69,6 +69,7 @@ typedef struct
     char *logstamp;
     char *dev_buffer_count;
     char *dev_buffer_size;
+    char *dev_buffer_align;
     char *logtype;
     char *events;
     char *keypath;
@@ -512,6 +513,12 @@ static int monitor_pvfs2_client(options_t *opts)
                 arg_list[arg_index+1] = opts->dev_buffer_size;
                 arg_index+=2;
             }
+            if(opts->dev_buffer_align)
+            {
+                arg_list[arg_index] = "--desc-align";
+                arg_list[arg_index+1] = opts->dev_buffer_align;
+                arg_index+=2;
+            }
             if(opts->events)
             {
                 arg_list[arg_index] = "--events";
@@ -595,6 +602,7 @@ static void print_help(char *progname)
            "PATH\n");
     printf("--desc-count=VALUE            overrides the default # of kernel buffer descriptors\n");
     printf("--desc-size=VALUE             overrides the default size of each kernel buffer descriptor\n");
+    printf("--desc-align=VALUE             overrides the default alignment of the kernel buffer.\n");
     printf("--logstamp=none|usec|datetime override default log message time stamp format\n");
     printf("--logtype=file|syslog         specify writing logs to file or syslog\n");
     printf("--events=EVENTS               enable tracing of certain EVENTS\n");
@@ -632,6 +640,7 @@ static void parse_args(int argc, char **argv, options_t *opts)
         {"capcache-reclaim-percentage",1,0,0},
         {"desc-count",1,0,0},
         {"desc-size",1,0,0},
+	{"desc-align",1,0,0},
         {"perf-time-interval-secs",1,0,0},
         {"perf-history-size",1,0,0},
 #ifdef USE_RA_CACHE
@@ -762,6 +771,10 @@ static void parse_args(int argc, char **argv, options_t *opts)
                 else if (strcmp("desc-size", cur_option) == 0)
                 {
                     opts->dev_buffer_size = optarg;
+                }
+                else if (strcmp("desc-align", cur_option) == 0)
+                {
+                    opts->dev_buffer_align = optarg;
                 }
                 else if (strcmp("perf-time-interval-secs", cur_option) == 0)
                 {

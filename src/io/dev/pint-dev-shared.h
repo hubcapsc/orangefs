@@ -52,6 +52,9 @@
 /* Sane maximum values for these parameters (128 MB) */
 #define PVFS2_BUFMAP_MAX_TOTAL_SIZE      (128ULL * (1024 * 1024))
 
+/* 2 meg default alignment when adjusted for folios in kernel module. */
+#define PVFS2_BUFMAP_TWOMEG_ALIGN 2097152
+
 /* log to base 2 when we know that number is a power of 2 */
 static inline int LOG2(int number)
 {

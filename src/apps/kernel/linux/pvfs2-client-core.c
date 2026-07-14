@@ -136,6 +136,8 @@ typedef struct
     int dev_buffer_count_set;
     unsigned int dev_buffer_size;
     int dev_buffer_size_set;
+    size_t dev_buffer_align;
+    int dev_buffer_align_set;
     char *events;
     char *keypath;
     int readahead_size;
@@ -5479,6 +5481,7 @@ static void print_help(char *progname)
     printf("--create-request-id           create a id which is transfered to the server\n");
     printf("--desc-count=VALUE            overrides the default # of kernel buffer descriptors\n");
     printf("--desc-size=VALUE             overrides the default size of each kernel buffer descriptor\n");
+    printf("--desc-align=VALUE             overrides the default alignment of the kernel buffer.\n");
     printf("--events=EVENT_LIST           specify the events to enable\n");
 }
 
@@ -5516,6 +5519,7 @@ static void parse_args(int argc, char **argv, options_t *opts)
         {"capcache-soft-limit",1,0,0},
         {"desc-count",1,0,0},
         {"desc-size",1,0,0},
+        {"desc-align",1,0,0},
         {"logfile",1,0,0},
         {"logtype",1,0,0},
         {"logstamp",1,0,0},
@@ -5579,6 +5583,19 @@ static void parse_args(int argc, char **argv, options_t *opts)
                         exit(EXIT_FAILURE);
                     }
                     opts->dev_buffer_size_set = 1;
+                }
+                else if (strcmp("desc-align", cur_option) == 0)
+                {
+gossip_err("%s: cur_option:%s: \n", __func__, cur_option);
+                    ret = sscanf(optarg, "%zu", &opts->dev_buffer_align);
+gossip_err("%s: cur_option:%s: align:%zu:\n",
+__func__, cur_option, opts->dev_buffer_align);
+                    if (ret != 1)
+                    {
+                        gossip_err( "Error: buffer alignment value.\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    opts->dev_buffer_align_set = 1;
                 }
                 else if (strcmp("logfile", cur_option) == 0)
                 {
@@ -5885,8 +5902,8 @@ static void parse_args(int argc, char **argv, options_t *opts)
               }                
               break;
             default:
-                gossip_err("Unrecognized option.  "
-                        "Try --help for information.\n");
+                gossip_err("Unrecognized option.:%s:  "
+                        "Try --help for information.\n", cur_option);
                 exit(1);
         }
     }
@@ -6362,9 +6379,18 @@ static void set_device_parameters(options_t *s_opts)
     {
         s_desc_params[BM_IO].dev_buffer_size = PVFS2_BUFMAP_DEFAULT_DESC_SIZE;
     }
+    if (s_opts->dev_buffer_align_set)
+    {
+        s_desc_params[BM_IO].dev_buffer_align  = s_opts->dev_buffer_align;
+    }
+    else
+    {
+        s_desc_params[BM_IO].dev_buffer_align = PVFS2_BUFMAP_TWOMEG_ALIGN;
+    }
     /* No command line options accepted for the readdir buffers */
     s_desc_params[BM_READDIR].dev_buffer_count = PVFS2_READDIR_DEFAULT_DESC_COUNT;
     s_desc_params[BM_READDIR].dev_buffer_size  = PVFS2_READDIR_DEFAULT_DESC_SIZE;
+    s_desc_params[BM_READDIR].dev_buffer_align  = sysconf(_SC_PAGE_SIZE);
     return;
 }
 

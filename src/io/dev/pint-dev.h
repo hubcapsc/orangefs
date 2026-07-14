@@ -58,6 +58,7 @@ struct PINT_dev_params
 {
     uint32_t dev_buffer_count;
     uint64_t dev_buffer_size;
+    size_t dev_buffer_align;
 };
 
 int PINT_dev_initialize(

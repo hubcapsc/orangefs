@@ -299,10 +299,14 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
     int debug_on = 0;
     uint64_t debug_mask = 0;
     int thp_enabled = thp_enabled_for_madvise();
+    size_t alignment;
+
 
     for (i = 0; i < ndesc; i++)
     {
+    	alignment = thp_enabled ? params[i].dev_buffer_align : page_size;
         total_size = params[i].dev_buffer_size * params[i].dev_buffer_count;
+
         if (total_size % page_size != 0) 
         {
             gossip_err("Error: total device buffer size must be a multiple of system page size.\n");
@@ -322,32 +326,10 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
                         llu(params[i].dev_buffer_size));
             break;
         }
-        /* we would like to use a memaligned region that is a multiple
-         * of the system page size
-         */
-gossip_err("DBG: i:%d: total_size:%lu:, bufsiz:%lu: count:%u:\n",
-i, total_size, params[i].dev_buffer_size, params[i].dev_buffer_count);
-        /* For I/O shoot for 2MB large pages as prep for dealing with
-         * folios in the kernel bufmap rather than pages. Stay with
-         * regular pages for the directory buffer.
-         */
 
-        if ((params[i].dev_buffer_size == PVFS2_BUFMAP_DEFAULT_DESC_SIZE) &&
-            (thp_enabled))
-        {
-            /* Giant posix_memalign might fail (OOM or something). */
-            if (posix_memalign(&ptr, 2097152, 41943040) == 0)
-            {
-               madvise(ptr, 41943040, MADV_HUGEPAGE);
-gossip_err("running madvise\n");
-               memset(ptr, 0, 41943040);
-            } else {
-gossip_err("failing over\n");
-               posix_memalign(&ptr, page_size, total_size);
-            }
-        } else { /* directory buffer */
-          posix_memalign(&ptr, page_size, total_size);
-        }
+gossip_err("%s: posix_memalign alignment:%zu: total_size:%lu: i:%d:\n",
+__func__, alignment, total_size, i);
+        posix_memalign(&ptr, alignment, total_size);
 
         if (!ptr)
         {
@@ -356,7 +338,12 @@ gossip_err("failing over\n");
             break;
         }
 
-        memset(ptr, 0, total_size);
+	if (thp_enabled && (alignment != page_size)) {
+               madvise(ptr, total_size, MADV_HUGEPAGE);
+               memset(ptr, 0, total_size);
+gossip_err("%s: madvise total_size:%lu: i:%d:\n",
+__func__, total_size, i);
+	}
 
         /* fixes a corruption issue on linux 2.4 kernels where the buffers are
          * not being pinned in memory properly 
