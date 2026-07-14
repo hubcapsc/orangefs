@@ -61,6 +61,8 @@ static int parse_devices(
     const char *targetfile,
     const char *devname, 
     int *majornum);
+
+static int thp_enabled_for_madvise(void);
 #endif  /* __linux__ */
 
 
@@ -296,6 +298,7 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
     int ioctl_cmd[2] = {PVFS_DEV_MAP, 0};
     int debug_on = 0;
     uint64_t debug_mask = 0;
+    int thp_enabled = thp_enabled_for_madvise();
 
     for (i = 0; i < ndesc; i++)
     {
@@ -322,7 +325,30 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
         /* we would like to use a memaligned region that is a multiple
          * of the system page size
          */
-        posix_memalign(&ptr, page_size, total_size);
+gossip_err("DBG: i:%d: total_size:%lu:, bufsiz:%lu: count:%u:\n",
+i, total_size, params[i].dev_buffer_size, params[i].dev_buffer_count);
+        /* For I/O shoot for 2MB large pages as prep for dealing with
+         * folios in the kernel bufmap rather than pages. Stay with
+         * regular pages for the directory buffer.
+         */
+
+        if ((params[i].dev_buffer_size == PVFS2_BUFMAP_DEFAULT_DESC_SIZE) &&
+            (thp_enabled))
+        {
+            /* Giant posix_memalign might fail (OOM or something). */
+            if (posix_memalign(&ptr, 2097152, 41943040) == 0)
+            {
+               madvise(ptr, 41943040, MADV_HUGEPAGE);
+gossip_err("running madvise\n");
+               memset(ptr, 0, 41943040);
+            } else {
+gossip_err("failing over\n");
+               posix_memalign(&ptr, page_size, total_size);
+            }
+        } else { /* directory buffer */
+          posix_memalign(&ptr, page_size, total_size);
+        }
+
         if (!ptr)
         {
             desc[i].ptr = NULL;
@@ -1023,6 +1049,39 @@ static int parse_devices(
     }
     fclose(devfile);
     return 0;
+}
+
+/* thp_enabled_for_madvise()
+ *
+ * Check to see if transparent huge pages are available.
+ * Used by PINT_dev_get_mapped_regions().
+ *
+ * returns 1 if available, 0 if not
+ */
+static int thp_enabled_for_madvise() {
+	const char *check_madvise =
+		"/sys/kernel/mm/transparent_hugepage/enabled";
+	char buf[256];
+	int fd;
+	ssize_t len;
+
+	fd = open(check_madvise, O_RDONLY);
+	if (fd < 0) {
+		goto nope; /* can't check hugepage setting... */
+	}
+
+	len = read(fd, buf, sizeof(buf) - 1);
+	close(fd);
+	if (len <= 0) {
+		goto nope; /* shoulda got something, but... */
+	}
+	buf[len] = '\0';
+
+        if (strstr(buf, "[always]") || strstr(buf, "[madvise]")) {
+            return 1;
+        }
+
+nope: return 0;  // Not found or disabled
 }
 #endif  /* __linux__ */
 
