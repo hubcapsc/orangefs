@@ -6,6 +6,10 @@
 #ifndef __PINT_DEV_H
 #define __PINT_DEV_H
 
+#ifndef MADV_COLLAPSE
+#define MADV_COLLAPSE 25
+#endif
+
 /*
  * parameter structure used in PVFS_DEV_CLIENT_MASK ioctl command
  *

@@ -5885,8 +5885,8 @@ static void parse_args(int argc, char **argv, options_t *opts)
               }                
               break;
             default:
-                gossip_err("Unrecognized option.  "
-                        "Try --help for information.\n");
+                gossip_err("Unrecognized option. :%s:  "
+                        "Try --help for information.\n", cur_option);
                 exit(1);
         }
     }

@@ -49,6 +49,9 @@
 #define PVFS2_BUFMAP_DEFAULT_TOTAL_SIZE \
 (PVFS2_BUFMAP_DEFAULT_DESC_COUNT * PVFS2_BUFMAP_DEFAULT_DESC_SIZE)
 
+/* 2 meg default alignment when adjusted for folios in kernel module. */
+#define PVFS2_BUFMAP_TWOMEG_ALIGN 2097152
+
 /* Sane maximum values for these parameters (128 MB) */
 #define PVFS2_BUFMAP_MAX_TOTAL_SIZE      (128ULL * (1024 * 1024))
 

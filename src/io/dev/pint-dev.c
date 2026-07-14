@@ -61,6 +61,8 @@ static int parse_devices(
     const char *targetfile,
     const char *devname, 
     int *majornum);
+
+static int thp_enabled_for_madvise(void);
 #endif  /* __linux__ */
 
 
@@ -296,10 +298,15 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
     int ioctl_cmd[2] = {PVFS_DEV_MAP, 0};
     int debug_on = 0;
     uint64_t debug_mask = 0;
+    int thp_enabled = thp_enabled_for_madvise();
+    size_t alignment;
+
 
     for (i = 0; i < ndesc; i++)
     {
+        alignment = thp_enabled ? PVFS2_BUFMAP_TWOMEG_ALIGN : page_size;
         total_size = params[i].dev_buffer_size * params[i].dev_buffer_count;
+
         if (total_size % page_size != 0) 
         {
             gossip_err("Error: total device buffer size must be a multiple of system page size.\n");
@@ -319,10 +326,9 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
                         llu(params[i].dev_buffer_size));
             break;
         }
-        /* we would like to use a memaligned region that is a multiple
-         * of the system page size
-         */
-        posix_memalign(&ptr, page_size, total_size);
+
+        posix_memalign(&ptr, alignment, total_size);
+
         if (!ptr)
         {
             desc[i].ptr = NULL;
@@ -330,7 +336,13 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
             break;
         }
 
-        memset(ptr, 0, total_size);
+	if (thp_enabled && (alignment == PVFS2_BUFMAP_TWOMEG_ALIGN)) {
+		if (madvise(ptr, total_size, MADV_HUGEPAGE))
+			gossip_err("%s: madvise hugepage\n", __func__);
+		memset(ptr, 0, total_size);
+		if (madvise(ptr, total_size, MADV_COLLAPSE))
+			gossip_err("%s: madvise collapse\n", __func__);
+	}
 
         /* fixes a corruption issue on linux 2.4 kernels where the buffers are
          * not being pinned in memory properly 
@@ -1023,6 +1035,39 @@ static int parse_devices(
     }
     fclose(devfile);
     return 0;
+}
+
+/* thp_enabled_for_madvise()
+ *
+ * Check to see if transparent huge pages are available.
+ * Used by PINT_dev_get_mapped_regions().
+ *
+ * returns 1 if available, 0 if not
+ */
+static int thp_enabled_for_madvise() {
+	const char *check_madvise =
+		"/sys/kernel/mm/transparent_hugepage/enabled";
+	char buf[256];
+	int fd;
+	ssize_t len;
+
+	fd = open(check_madvise, O_RDONLY);
+	if (fd < 0) {
+		goto nope; /* can't check hugepage setting... */
+	}
+
+	len = read(fd, buf, sizeof(buf) - 1);
+	close(fd);
+	if (len <= 0) {
+		goto nope; /* shoulda got something, but... */
+	}
+	buf[len] = '\0';
+
+        if (strstr(buf, "[always]") || strstr(buf, "[madvise]")) {
+            return 1;
+        }
+
+nope: return 0;  // Not found or disabled
 }
 #endif  /* __linux__ */
 
