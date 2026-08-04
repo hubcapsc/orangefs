@@ -18,6 +18,7 @@
 #include <getopt.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 
 #ifdef __PVFS2_SEGV_BACKTRACE__
 #include <execinfo.h>
@@ -5586,10 +5587,7 @@ static void parse_args(int argc, char **argv, options_t *opts)
                 }
                 else if (strcmp("desc-align", cur_option) == 0)
                 {
-gossip_err("%s: cur_option:%s: \n", __func__, cur_option);
                     ret = sscanf(optarg, "%zu", &opts->dev_buffer_align);
-gossip_err("%s: cur_option:%s: align:%zu:\n",
-__func__, cur_option, opts->dev_buffer_align);
                     if (ret != 1)
                     {
                         gossip_err( "Error: buffer alignment value.\n");
@@ -6361,6 +6359,41 @@ static int set_ncache_parameters(options_t* s_opts)
     return(0);
 }
 
+/*
+ * The kernel module creates the bufmap-alignment sysfs variable
+ * and userspace writes the alignment it asked for in posix_memalign
+ * into it. The kernel module uses the alignment value to determine
+ * if the folio/bufmap-slot ratio is optimal.
+ */
+static void bufmap_alignment(size_t alignment)
+{
+	const char *bufmap_alignment = "/sys/fs/orangefs/bufmap_alignment";
+	int fd;
+	ssize_t rc;
+	char buf[32];
+	int len;
+
+	fd = open(bufmap_alignment, O_WRONLY);
+	if (fd < 0) {
+		return;
+	}
+
+	len = snprintf(buf, sizeof(buf), "%zu\n", alignment);
+	if (len < 0) {
+		close(fd);
+		return;
+	}
+
+	rc = write(fd, buf, len);
+	close(fd);
+
+	if (rc != len) {
+		gossip_err("%s: write failed, errno:%d:\n", __func__, errno);
+	}
+
+	return;
+}
+
 static void set_device_parameters(options_t *s_opts)
 {
     if (s_opts->dev_buffer_count_set)
@@ -6387,6 +6420,8 @@ static void set_device_parameters(options_t *s_opts)
     {
         s_desc_params[BM_IO].dev_buffer_align = PVFS2_BUFMAP_TWOMEG_ALIGN;
     }
+    bufmap_alignment(s_desc_params[BM_IO].dev_buffer_align);
+
     /* No command line options accepted for the readdir buffers */
     s_desc_params[BM_READDIR].dev_buffer_count = PVFS2_READDIR_DEFAULT_DESC_COUNT;
     s_desc_params[BM_READDIR].dev_buffer_size  = PVFS2_READDIR_DEFAULT_DESC_SIZE;

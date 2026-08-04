@@ -304,7 +304,7 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
 
     for (i = 0; i < ndesc; i++)
     {
-    	alignment = thp_enabled ? params[i].dev_buffer_align : page_size;
+        alignment = thp_enabled ? params[i].dev_buffer_align : page_size;
         total_size = params[i].dev_buffer_size * params[i].dev_buffer_count;
 
         if (total_size % page_size != 0) 
@@ -327,8 +327,6 @@ int PINT_dev_get_mapped_regions(int ndesc, struct PVFS_dev_map_desc *desc,
             break;
         }
 
-gossip_err("%s: posix_memalign alignment:%zu: total_size:%lu: i:%d:\n",
-__func__, alignment, total_size, i);
         posix_memalign(&ptr, alignment, total_size);
 
         if (!ptr)
@@ -341,8 +339,6 @@ __func__, alignment, total_size, i);
 	if (thp_enabled && (alignment != page_size)) {
                madvise(ptr, total_size, MADV_HUGEPAGE);
                memset(ptr, 0, total_size);
-gossip_err("%s: madvise total_size:%lu: i:%d:\n",
-__func__, total_size, i);
 	}
 
         /* fixes a corruption issue on linux 2.4 kernels where the buffers are
