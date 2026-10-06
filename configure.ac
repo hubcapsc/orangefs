@@ -295,11 +295,7 @@ AC_SUBST(DATABASE_BACKEND)
 AC_SUBST(NEED_BERKELEY_DB)
 AC_SUBST(NEED_LMDB))
 
-AC_ARG_ENABLE(external-lmdb,
-[  --enable-external-lmdb        Enable linking against an external LMDB library.],
-WANT_INTERNAL_LMDB=no,
-WANT_INTERNAL_LMDB=yes)
-AC_SUBST(WANT_INTERNAL_LMDB)
+WANT_INTERNAL_LMDB=no
 
 dnl locate OpenSSL libraries
 AX_OPENSSL
@@ -1887,7 +1883,6 @@ module.mk
 src/apps/admin/module.mk
 src/apps/admin/pvfs2-config
 src/apps/devel/module.mk
-src/apps/devel/lmdb/module.mk
 src/apps/karma/module.mk
 src/apps/vis/module.mk
 src/apps/fuse/module.mk
@@ -1911,7 +1906,6 @@ src/common/mgmt/module.mk
 src/common/security/module.mk
 src/common/hash/module.mk
 src/common/token-utils/module.mk
-src/common/lmdb/module.mk
 src/io/bmi/module.mk
 src/io/bmi/bmi_tcp/module.mk
 src/io/bmi/bmi_gm/module.mk

@@ -168,7 +168,6 @@ INCLUDES := \
     src/common/gen-locks \
     src/common/events \
     src/client/usrint \
-    src/common/lmdb \
     src/server
 GENINCLUDES := \
 	include \
@@ -184,7 +183,6 @@ INCLUDES := \
     src/common/gen-locks \
     src/common/events \
     src/common/security \
-    src/common/lmdb \
     src/client/usrint \
     src/io/trove \
     src/io/bmi \
