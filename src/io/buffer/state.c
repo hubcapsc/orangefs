@@ -296,7 +296,9 @@ void list_set_clean_page(struct extent *page)
 {
     struct extent *next;
 
+#ifdef DEBUG
     int cnt = 0;  
+#endif
 
     DPRINT("iodone before: flags:%lx\n", page->flags);
     ClearPageDirty(page);
@@ -307,7 +309,9 @@ void list_set_clean_page(struct extent *page)
     page->ioreq = INVAL_IOREQ; 
     next = page->ioreq_next;
 
+#ifdef DEBUG
     cnt ++;
+#endif
 
     while ( next != page ) {
         SetPageClean (next);
@@ -317,12 +321,16 @@ void list_set_clean_page(struct extent *page)
 
         next->ioreq = INVAL_IOREQ;
 
+#ifdef DEBUG
         cnt++;
+#endif
 
         next = next->ioreq_next;
     }
 
+#ifdef DEBUG
     DPRINT("clean_page: %d\n", cnt);
+#endif
 
     return;
 }
