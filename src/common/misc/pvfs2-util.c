@@ -116,7 +116,7 @@ static int parse_encoding_string(const char *cp,
                                  enum PVFS_encoding_type *et);
 
 static int parse_num_dfiles_string(const char* cp, int* num_dfiles);
-static int parse_bmi_opts_string(char *cp, char **bmi_opts);
+static int  parse_bmi_opts_string(const char *cp, char **bmi_opts);
 
 #ifndef ENABLE_SECURITY_MODE
 static int PINT_is_idnum(const char *str);
@@ -1213,7 +1213,7 @@ error_exit:
 static int PINT_util_parse_mnt_opts(const char *opts,
                                     struct PVFS_sys_mntent *mntent)
 {
-    char *cp;
+    const char *cp;
     int ret;
 
     /* find out if a particular flow protocol was specified */
@@ -1986,7 +1986,7 @@ static int parse_flowproto_string(
     enum PVFS_flowproto_type *flowproto)
 {
     int ret = 0;
-    char *start = NULL;
+    const char *start = NULL;
     char flow[256];
     char *comma = NULL;
 
@@ -2534,9 +2534,9 @@ static int parse_num_dfiles_string(const char* cp, int* num_dfiles)
  *
  * Returns 0 on success, -PVFS_EINVAL on failure.
  */
-static int parse_bmi_opts_string(char *input, char **bmi_opts)
+static int parse_bmi_opts_string(const char *input, char **bmi_opts)
 {
-    char *cp = NULL;
+    const char *cp = NULL;
     char *closing_quote = NULL;
 
     cp = input + strlen("bmi_opts");

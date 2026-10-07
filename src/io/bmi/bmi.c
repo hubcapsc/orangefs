@@ -1755,7 +1755,8 @@ int BMI_query_addr_range (BMI_addr_t addr,
     int ret = -1;
     int i = 0, failed = 1;
     int provided_method_length = 0;
-    char *ptr, *provided_method_name = NULL;
+    const char *ptr;
+    char *provided_method_name = NULL;
     ref_st_p tmp_ref = NULL;
 
     if ((strlen(id_string)+1) > BMI_MAX_ADDR_LEN)

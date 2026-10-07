@@ -154,7 +154,7 @@ char *string_key(const char *key,
 		 const char *id_string)
 {
     char *retstr = NULL;
-    char *tmpstr = NULL;
+    const char *tmpstr = NULL;
     int klen = 0;
     int plen = 0;
     int rlen = 0;

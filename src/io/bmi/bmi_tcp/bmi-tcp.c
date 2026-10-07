@@ -676,7 +676,7 @@ int BMI_tcp_finalize(void)
 bmi_method_addr_p BMI_tcp_method_addr_lookup(const char *id_string)
 {
     char *tcp_string = NULL;
-    char *delim = NULL;
+    const char *delim = NULL;
 #ifdef BMI_TCP_ZONE
     char *zone = NULL;
     int zone_len = 0;
@@ -716,7 +716,7 @@ bmi_method_addr_p BMI_tcp_method_addr_lookup(const char *id_string)
         }
         else
         {
-            char *delim2;
+            const char *delim2;
 
             if ( ((delim2 = strpbrk(delim, ":/")) == NULL) ||
                  (*delim2 != ':') )
