@@ -5848,7 +5848,6 @@ int job_precreate_pool_get_handles(
     /* make sure the requested type is actually trying to get handles (i.e. has
      * a batch count bigger than 0). if not, return einval */
     PVFS_ds_type_to_int(type, &index);
-    assert(fs->type_batch_count);
     if( fs->type_batch_count[index] < 1 )
     {
         gen_mutex_unlock(&precreate_pool_mutex);
