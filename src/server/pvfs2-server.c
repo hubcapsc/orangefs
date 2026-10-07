@@ -2834,7 +2834,6 @@ static int precreate_pool_initialize(int server_index)
     int i, j;
     int server_type;
     int handle_count = 0;
-    int fs_count = 0;
     unsigned int types_to_pool = 0;
     struct server_configuration_s *user_opts = PINT_server_config_mgr_get_config();
     assert(user_opts);
@@ -2847,8 +2846,6 @@ static int precreate_pool_initialize(int server_index)
         {
             break;
         }
-
-        fs_count++;
 
         /* am I a meta server in this file system? */
         ret = PINT_cached_config_check_type(
