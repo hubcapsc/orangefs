@@ -608,17 +608,12 @@ static void print_root_check_error_details(PVFS_error_details * error_details)
 {
     int i = 0;
     int owners = 0;
-    int fatal_errors = 0;
     /* find # of servers that report ownership of root */
     for(i = 0; i < error_details->count_used; ++i)
     {
         if(error_details->error[i].error == 0)
         {
             ++owners;
-        }
-        else if(error_details->error[i].error != -PVFS_ENOENT)
-        {
-            ++fatal_errors;
         }
     }
 
