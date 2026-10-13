@@ -284,6 +284,7 @@ static int set_ncache_parameters(options_t* s_opts);
 static int set_capcache_parameters(options_t* s_opts);
 static void finalize_perf_items(int n, ... );
 inline static void fill_hints(vfs_request_t *req);
+static void add_open_access_hint(vfs_request_t *vfs_request);
 
 #ifdef USE_RA_CACHE
 static PVFS_error post_io_readahead_request(vfs_request_t *vfs_request,
@@ -2299,6 +2300,7 @@ static PVFS_error post_io_readahead_request(vfs_request_t *vfs_request,
     assert(ret == 0);
 
     fill_hints(vfs_request);
+    add_open_access_hint(vfs_request);
 
     credential = lookup_credential(vfs_request->in_upcall.uid,
                                    vfs_request->in_upcall.gid);
@@ -2819,6 +2821,7 @@ static PVFS_error post_io_request(vfs_request_t *vfs_request)
     assert(ret == 0);
 
     fill_hints(vfs_request);
+    add_open_access_hint(vfs_request);
 
     credential = lookup_credential(vfs_request->in_upcall.uid,
                                    vfs_request->in_upcall.gid);
@@ -6369,6 +6372,30 @@ static void set_device_parameters(options_t *s_opts)
 }
 
 static int get_mac(void);
+
+/*
+ * Must match ORANGEFS_OPEN_ACCESS_MAGIC / ORANGEFS_OPEN_READ /
+ * ORANGEFS_OPEN_WRITE in the kernel module.
+ */
+#define PVFS_OPEN_ACCESS_MAGIC 0x4f410000
+#define PVFS_OPEN_ACCESS_READ  0x1
+#define PVFS_OPEN_ACCESS_WRITE 0x2
+
+static void add_open_access_hint(vfs_request_t *vfs_request)
+{
+    uint32_t word, bits;
+    char buf[16];
+
+    word = (uint32_t)vfs_request->in_upcall.req.io.open_access;
+    if ((word & 0xffff0000) != PVFS_OPEN_ACCESS_MAGIC)
+        return;
+    bits = word & (PVFS_OPEN_ACCESS_READ | PVFS_OPEN_ACCESS_WRITE);
+    if (!bits)
+        return;
+    snprintf(buf, sizeof(buf), "%u", bits);
+    PVFS_hint_add(&vfs_request->hints, PVFS_HINT_OPEN_ACCESS_NAME,
+                  (int)strlen(buf) + 1, buf);
+}
 
 inline static void fill_hints(vfs_request_t *req)
 {

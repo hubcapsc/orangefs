@@ -35,6 +35,9 @@
 #include "pint-uid-map.h"
 #include "check.h"
 #include "capcache.h"
+#include "pint-hint.h"
+#include "pvfs2-hint.h"
+#include "config-utils.h"
 
 #if defined(ENABLE_SECURITY_KEY) || defined(ENABLE_SECURITY_CERT)
 #define ENABLE_SECURITY_MODE
@@ -1463,6 +1466,49 @@ static PINT_sm_action getattr_read_acl(
     return ret;
 }
 
+/*
+ * The kernel VFS already authorized these directions at open. Add
+ * only READ and WRITE. A squashed anonymous uid does not get them:
+ * root squash and all squash are supposed to ignore the client root.
+ */
+static void apply_open_access_hint(struct PINT_server_op *s_op,
+                                    PVFS_uid uid,
+                                    uint32_t *op_mask)
+{
+    struct server_configuration_s *serv_config = NULL;
+    struct filesystem_configuration_s *fsconfig = NULL;
+    char *val;
+    int len = 0;
+    unsigned int bits = 0;
+
+    if (!s_op->req)
+        return;
+    val = PINT_hint_get_value_by_name(s_op->req->hints,
+                                      PVFS_HINT_OPEN_ACCESS_NAME, &len);
+    if (!val || len < 1 || val[0] == '\0')
+        return;
+
+    serv_config = PINT_get_server_config();
+    if (serv_config)
+        fsconfig = PINT_config_find_fs_id(serv_config,
+                                          s_op->u.getattr.fs_id);
+    if (fsconfig &&
+        (fsconfig->exp_flags &
+         (TROVE_EXP_ROOT_SQUASH | TROVE_EXP_ALL_SQUASH)) &&
+        uid == fsconfig->exp_anon_uid)
+        return;
+
+    while (*val >= '0' && *val <= '9')
+    {
+        bits = bits * 10u + (unsigned int)(*val - '0');
+        val++;
+    }
+    if (bits & 0x1)
+        *op_mask |= PINT_CAP_READ;
+    if (bits & 0x2)
+        *op_mask |= PINT_CAP_WRITE;
+}
+
 /* getattr_create_capability
  *
  * Creates and fills in a capability object with the appropriate
@@ -1584,6 +1630,7 @@ static PINT_sm_action getattr_create_capability(
         js_p->error_code = ret;
         return SM_ACTION_COMPLETE;
     }
+    apply_open_access_hint(s_op, uid, &resp_attr->capability.op_mask);
 #ifdef ENABLE_SECURITY_MODE
     } /* if */
 #endif

@@ -15,10 +15,20 @@
  */
 typedef struct
 {
+    /*
+     * PVFS_VFS_SYNC_IO (0) or PVFS_VFS_ASYNC_IO (1). The in-tree
+     * module leaves this zero.
+     */
     int32_t async_vfs_io;
     int32_t buf_index;
     int32_t count;
-    int32_t __pad1;
+    /*
+     * In-tree module stores ORANGEFS_OPEN_ACCESS_MAGIC plus the VFS
+     * read/write bits when the open-access feature bit is set.
+     * Same slot the kernel calls open_access. Do not remove this
+     * field: offset must stay 8-byte aligned.
+     */
+    int32_t open_access;
     int64_t offset;
     PVFS_object_kref refn;
     enum PVFS_io_type io_type;

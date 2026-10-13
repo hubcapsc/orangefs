@@ -27,6 +27,8 @@
 #include "security-util.h"
 #include "dist-dir-utils.h"
 #include "client-capcache.h"
+#include "pint-hint.h"
+#include "pint-security.h"
 
 /* pvfs2_client_getattr_sm
  *
@@ -618,6 +620,29 @@ static PINT_sm_action getattr_acache_lookup(struct PINT_smcb *smcb,
  * machine.
  */
 
+/*
+ * Bits the kernel says this open was already granted, as capability
+ * mask bits. Zero when the hint is absent.
+ */
+static uint32_t open_access_cap_bits(PVFS_hint hints)
+{
+    char *val;
+    int len = 0;
+    unsigned int bits = 0;
+
+    val = PINT_hint_get_value_by_name(hints, PVFS_HINT_OPEN_ACCESS_NAME, &len);
+    if (!val || len < 1)
+        return 0;
+    while (*val >= '0' && *val <= '9')
+    {
+        bits = bits * 10u + (unsigned int)(*val - '0');
+        val++;
+    }
+    bits &= 0x3;
+    return ((bits & 0x1) ? PINT_CAP_READ : 0) |
+           ((bits & 0x2) ? PINT_CAP_WRITE : 0);
+}
+
 static PINT_sm_action getattr_client_capcache_lookup(struct PINT_smcb *smcb,
                                                      job_status_s *js_p)
 {
@@ -647,6 +672,20 @@ static PINT_sm_action getattr_client_capcache_lookup(struct PINT_smcb *smcb,
     /* lookup capability */
     ret = PINT_client_capcache_get_cached_entry(sm_p->getattr.object_ref, 
               local_uid, &sm_p->getattr.attr.capability);
+    if (ret == 0 &&
+        (open_access_cap_bits(sm_p->hints) &
+         ~sm_p->getattr.attr.capability.op_mask) != 0)
+    {
+        /*
+         * This open was granted a read or write bit the cached
+         * capability does not have. Ask the server to mint again.
+         */
+        gossip_debug(GOSSIP_CLIENT_DEBUG,
+                     "%s: capcache hit missing open-access bits\n",
+                     __func__);
+        PINT_cleanup_capability(&sm_p->getattr.attr.capability);
+        ret = -PVFS_ENOENT;
+    }
     if (ret == 0)
     {
         /* hit - no need to request cap */

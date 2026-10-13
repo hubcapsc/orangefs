@@ -25,6 +25,12 @@
 #define PVFS_HINT_DISTRIBUTION_PV_NAME "pvfs.hint.distribution.pv"
 /* local uid hint for client capcache */
 #define PVFS_HINT_LOCAL_UID_NAME     "pvfs.hint.local_uid"
+/*
+ * Decimal string of bits the VFS already granted for this open.
+ * Bit 0 is read, bit 1 is write. Only the kernel I/O path sets it.
+ * The server may add PINT_CAP_READ / PINT_CAP_WRITE and nothing else.
+ */
+#define PVFS_HINT_OPEN_ACCESS_NAME   "pvfs.hint.open_access"
 /* owner gid for file creation */
 #define PVFS_HINT_OWNER_GID_NAME     "pvfs.hint.owner_gid"
 
