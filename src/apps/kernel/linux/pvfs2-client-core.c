@@ -4453,11 +4453,13 @@ static inline PVFS_error handle_unexp_vfs_request(vfs_request_t *vfs_request)
 #endif
             break;
         case PVFS2_VFS_OP_FEATURES:
+            /* Older kernels ignore bits they do not know. */
 #ifdef USE_RA_CACHE
             vfs_request->out_downcall.resp.features.features =
-                PVFS2_FEATURE_READAHEAD;
+                PVFS2_FEATURE_READAHEAD | PVFS2_FEATURE_OPEN_ACCESS;
 #else
-            vfs_request->out_downcall.resp.features.features = 0;
+            vfs_request->out_downcall.resp.features.features =
+                PVFS2_FEATURE_OPEN_ACCESS;
 #endif
             vfs_request->out_downcall.status = 0;
             vfs_request->out_downcall.type = vfs_request->in_upcall.type;

@@ -46,6 +46,7 @@
 
 /* features is a 64-bit unsigned bitmask */
 #define PVFS2_FEATURE_READAHEAD 1
+#define PVFS2_FEATURE_OPEN_ACCESS 2
 
 /* Misc constants. Please retain them as multiples of 8!
  * Otherwise 32-64 bit interactions will be messed up :)
